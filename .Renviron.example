@@ -1,0 +1,11 @@
+# Modify as appropriate below and rename to .Renviron
+
+# local onedrive path to the xbox data "oii_data_2022_07_01.txt"
+xboxDataPath=""
+
+# Qualtrics API key and base url
+# Find these at Qualtrics account settings page
+QUALTRICS_API_KEY=""
+QUALTRICS_BASE_URL="fra1.qualtrics.com"
+QUALTRICS_PANEL_SURVEY_ID="SV_cUWSKTxHLWECPSC"
+QUALTRICS_DIARY_SURVEY_ID="SV_bQM6eIztcYJDW3s"

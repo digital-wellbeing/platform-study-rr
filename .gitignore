@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+
+*.html
+*_files/
+data/
+data-synthetic/
+/.quarto/
+.Renviron
