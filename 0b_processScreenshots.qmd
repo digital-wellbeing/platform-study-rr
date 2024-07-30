@@ -1,0 +1,523 @@
+---
+title: "Process iOS Screenshots"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+page-layout: full
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+bibliography: references.bib
+---
+
+
+# Load packages, clear environment, set seed, and turn scientific notation off
+```{r}
+#| label: setup
+
+if (!require("pacman")) install.packages("pacman");
+library(pacman)
+pacman::p_load(tidyverse, dplyr, ggplot2, forcats, tesseract, magick, colorfindr, janitor, tictoc)
+
+knitr::opts_chunk$set(
+  echo = knitr::is_html_output(),
+  warning = FALSE,
+  message = FALSE,
+  output = TRUE
+)
+
+options(scipen = 999)
+set.seed(42)
+
+eng <- tesseract("eng")
+```
+
+```{r}
+#| label: set-folder
+
+folder <- Sys.getenv("screenshotsPath")
+```
+
+```{r}
+#| label: setup-dfs
+
+data <- tibble() 
+
+# Create blank dataframe to add those flagged for manual extraction
+manual_extraction <- tibble(responseID = character(), 
+                            filename = character())
+
+```
+
+
+# Set up functions for later use
+
+## Pre-Processing function
+
+```{r}
+#| label: pre-process
+
+preProcessing <- function(filename) {
+  blacks <- c("#1C1C1E", "#242426") #to determine if the image is in dark or light mode
+  
+  image <- image_read(filename) #for main analysis
+  info <- image_info(image)
+  
+  if (info$format != "PNG") {
+    image = image_convert(image, format = 'png')
+    # change extension to .jpeg and get colors
+    filepath2 <- gsub(".png$|.PNG$", ".jpeg", filename) 
+    file.rename(from = filename, to = filepath2)
+    img_color <- get_colors(img = filepath2, min_share = 0.30) # for color info
+  } else {
+    img_color <- get_colors(img = filename, min_share = 0.30) # for color info
+  }
+  
+  # get dimensions for cropping left side
+  width <- info$width - 0.10 * as.numeric(info$width)
+  height <- info$height
+  dimensions <- paste0(width, "x", height, "-80")
+  
+  # main pre-processing
+  if (img_color$col_hex[[1]] %in% blacks) {
+    #dark mode pre-processing
+    input <- image |> 
+      image_negate() |> 
+      image_contrast(sharpen = 10) |> 
+      image_threshold(type = "black",
+                      threshold = "70%",
+                      channel = NULL)
+  } else {
+    # light mode pre-processing
+    if (info$filesize < 100000) {
+      image <- image |> 
+        image_contrast(sharpen = 1)
+    } # sharpen low quality images
+    
+    input <- image |> 
+      image_threshold(type = "black",
+                      threshold = "80%",
+                      channel = NULL)
+  }
+  
+  # input <- input |> 
+  #   image_crop(dimensions) # crop left side to avoid icons interfering too much
+  
+  return(input)
+}
+```
+
+## Function for pre-identification for manual extraction
+
+Here we flag images that are unlikely to be extractable using OCR and may need subsequent manual extraction or may not have valid data at all. Common indicators of this are other languages or the wrong tab selected in the screenshot.
+
+```{r}
+#| label: pre-identify
+
+pre_identification_manual <- function(text) {
+  flag_wrong_screenshot_1 <- grepl("SHOW APPS & WEBSITES", text, fixed = TRUE) #reason 1
+  flag_wrong_screenshot_2 <- grepl("Samsung S6 Note Tablet", text, fixed = TRUE) #reason 2
+  flag_wrong_screenshot_3 <- grepl("Most used apps", text, fixed = TRUE) #reason 3
+  flag_wrong_screenshot_4 <- grepl("Settimana scorsa", text, fixed = TRUE) #spanish 1
+  flag_wrong_screenshot_5 <- grepl("UTILIZZATE MOSTRA ", text, fixed = TRUE) #spanish 2
+  
+  if (flag_wrong_screenshot_1 | flag_wrong_screenshot_2 | flag_wrong_screenshot_3 | flag_wrong_screenshot_4){
+    return(TRUE)
+  }
+  return(FALSE)
+}
+```
+
+## Clean up OCRed text
+
+```{r}
+#| label: clean-text
+
+postProcessing <- function(text) {
+  
+  text2 <- text |> 
+    str_remove_all("(?s).*?APPS & WEB") |> 
+    str_remove_all(".*Last Week") |> 
+    str_remove_all("(?s)(Show More).*")
+  
+  cat_text <- capture.output(cat(text2)) #convert format
+  cat_text <- cat_text[cat_text != ""] # remove blank elements
+  cat_text <- cat_text[cat_text != " "] # remove blank elements
+  cat_text <- cat_text[cat_text != "z"] #remove standalone "z" from hourglass icon
+  cat_text <- gsub("[[:space:]]", "", cat_text) #remove space
+  cat_text <- gsub("^[A-Za-z]{1}$", "", cat_text) #remove 1 digit apps (messes up num identification)
+  cat_text <- gsub("^[a-z]{2}$", "", cat_text) #remove 2 digit apps (as messes up num identification)
+  cat_text <- gsub("^[a-z]{3}$", "", cat_text) #remove lower case 3 digit apps (messes up num identification)
+  cat_text <-gsub("Ss", "", cat_text)
+  cat_text <- cat_text[cat_text != ""] # remove blank elements
+  
+  return(cat_text)
+}
+```
+
+## First function for post-identification for manual extraction
+```{r}
+#| label: post-manual-one
+
+find.dup <- function(x, n){
+  n %in% rle(x)$lengths
+}
+
+post_manual_one <- function(text){
+  flag_incorrect_extraction_1 <- length(text) == 0 #no apps identified
+  flag_incorrect_extraction_2 <- "oras" %in% text #in spanish
+  flag_incorrect_extraction_3 <- length(text) == 1 #no time identified
+  
+  check <- as.character(grepl("[0-9]", text))
+  flag_incorrect_extraction_4 <- find.dup(check,3) # may generate false pos but catches issues
+  flag_incorrect_extraction_5 <- find.dup(check,4)
+  flag_incorrect_extraction_6 <- find.dup(check,2) #will also create  false positives but lets be safe
+  
+  flag_incorrect_extraction_7 <- any(grepl("SafarieeRedditoeInstagram", text, fixed = TRUE))
+  flag_incorrect_extraction_8 <- any(grepl("^[0-9]+s$", text)) #contains seconds
+  flag_incorrect_extraction_9 <- any(grepl("epotioninvisionzonecom", text))
+  
+  if(flag_incorrect_extraction_1 | flag_incorrect_extraction_2 | flag_incorrect_extraction_3 | flag_incorrect_extraction_4 |
+     flag_incorrect_extraction_5 |flag_incorrect_extraction_6 | flag_incorrect_extraction_7 | flag_incorrect_extraction_8 |
+     flag_incorrect_extraction_9) {
+    return(TRUE)
+  }
+  return(FALSE)
+}
+```
+
+## Function to extract and format the data from the raw text
+```{r}
+#| label: extract-data
+
+extractData <- function(text){
+  if(!length(text)%%2 == 0){
+    text <- text[-length(text)]
+    }
+  
+  new_data <- as.data.frame(matrix(text, 
+                                   ncol = length(text)/2, byrow = FALSE), 
+                            stringsAsFactors = FALSE)
+  #note, the above gives a warning (not an error) if the same app appears 
+  
+  new_data <- new_data %>% 
+    row_to_names(row_number = 1) %>% 
+    pivot_longer(cols = everything(), names_to = "app", values_to = "usage_temp") %>% 
+    mutate(usage_temp  = gsub("[^0-9hm]", "", usage_temp)) %>% 
+    filter(nchar(usage_temp) > 1) #must be minimum length of 2 (for num + either h or m)
+  
+  image_data <- new_data %>% 
+    mutate(mins_temp = case_when(str_detect(string = usage_temp, 
+                                            pattern = "[0-9]h[0-9]") ~ gsub(".*h", "", usage_temp),
+                                 str_detect(string = usage_temp, 
+                                            pattern = "[0-9]h") ~ "0",
+                                 TRUE ~ usage_temp),
+           hours_temp = case_when(str_detect(string = usage_temp, 
+                                             pattern = "[0-9]h[0-9]") ~ gsub("h.*", "", usage_temp),
+                                  str_detect(string = usage_temp, pattern = "[0-9]h") ~ gsub("h.*", "", usage_temp),
+                                  TRUE ~ "0"),
+           mins = gsub("[a-zA-Z]", "", mins_temp),
+           usage_mins = 60*as.numeric(hours_temp) + as.numeric(mins)) %>% 
+    select(app, usage_mins) #can keep all columns for testing purposes 
+  
+  return(image_data)
+}
+```
+
+## Second function for post-identification for manual extraction
+```{r}
+#| label: post-manual-two
+
+post_manual_two <- function(image_data){
+  flag_incorrect_extraction_1 <- dim(image_data)[1] == 0 #no rows in the resulting dataframe
+  flag_incorrect_extraction_2 <- any(is.na(image_data)) #any rows/columns contain NA
+  flag_incorrect_extraction_3 <- nrow(image_data) <=3 #extracted 3 or less rows from the image
+  flag_incorrect_extraction_4 <- any(grepl("[0-9]h", image_data$app)) #if the app column contains [0-9]h
+  
+  if (flag_incorrect_extraction_1 | 
+      flag_incorrect_extraction_2 | 
+      flag_incorrect_extraction_3 | 
+      flag_incorrect_extraction_4) 
+  {
+    return(TRUE)
+  }
+  return(FALSE)
+}
+```
+
+# Process Images
+
+```{r}
+#| label: process-images
+
+tic() #start the timer to see how long it takes
+
+all_files <- list.files(path = folder, full.names = TRUE)
+
+for (file in all_files) {
+  
+letters <- tesseract(options = list(tessedit_char_whitelist = c(LETTERS,"01235679",letters)))  
+  
+  image_read(file) |> 
+    image_negate() |> 
+    image_threshold(type = "white",
+                    threshold = "80%",
+                    channel = NULL) |>
+    image_threshold(type = "black",
+                    threshold = "90%",
+                    channel = NULL) |>
+    
+    image_deskew(threshold = 40) |> 
+    image_contrast(sharpen = 1) |> 
+    image_crop(paste0(info$width*.9, "x", info$height, "-80")) |>
+    image_resize("200%") |> 
+    tesseract::ocr(engine = letters) |> 
+    postProcessing()
+  
+  processed_image <- preProcessing(file) #check up to here
+  text <- tesseract::ocr(image = processed_image, 
+                         engine = eng)
+ 
+   if (pre_identification_manual(text)) {
+     manual_extraction <- rbind(manual_extraction,
+                                data.frame(responseID = responseID, 
+                                           filename = file))
+    next # if flagged for manual extraction, skip the rest
+  } else {
+    
+    processed_text <- postProcessing(text)
+    
+    if (post_manual_one(processed_text)) {
+     manual_extraction <- rbind(manual_extraction,
+                                data.frame(responseID = responseID, 
+                                           filename = file))
+      next #if flagged for manual extraction, skip the rest
+    } else {
+      image_data <- extractData(processed_text)
+      image_data$responseID <- responseID
+      if (post_manual_two(image_data)) {
+        manual_extraction <- rbind(manual_extraction,
+                                   data.frame(responseID = responseID,
+                                              filename = file))
+        next # if flagged for manual extraction, skip the rest
+      } else{
+        data <- rbind(data, image_data)
+      } # third manual check
+    } # second manual check
+  } # first manual check
+  
+}
+toc() #end the timer
+
+#note, this throws some warnings but all is handled, so no problems in that respect.
+```
+
+# Clean up app names
+```{r}
+#| label: clean-app-names
+
+data <- data %>% 
+   mutate(app = case_when(app == "yMail" ~"Mail", app == "yjSafari" ~"Safari", app == "rFacebook" ~ "Facebook",
+                         app == "ojappprolificco"~ "Prolific", app == "EFacebook" ~"Facebook", app == "Slacky" ~ "Slack", 
+                         app == "aCalculatory" ~ "Calculator", app == "BPhone"~ "Phone", app == "Safariy" ~ "Safari",
+                         app == "rFacebooky"~ "Facebook", app == "eNYTimes" ~ "NYTimes", app == "ojcatalogusmintgov" ~"catalog.usmint.gov",
+                         app == "pixivnet" ~"pixiv", app == "DReddit" ~ "Reddit", app == "BMessages" ~ "Messages",
+                         app == "BDiscord" ~ "Discord", app == "googlecom" ~ "google.com", app == "yTwitter" ~ "Twitter",
+                         app == "aMail" ~ "Mail", app == "eFacebook" ~ "Facebook", app == "hsSchwab" ~ "Schwab",
+                         app == "BCalculator" ~ "Calculator", app == "Facebooky" ~ "Facebook", app == "YouTubeWatchListenStream" ~ "YouTube",
+                         app == "MessagesY" ~ "Messages", app == "YAmongUs" ~ "AmongUs", app == "aChrome" ~ "Chrome",
+                         app == "aySafari" ~ "Safari", app == "fFacebook" ~ "Facebook", app == "ryappprolificco" ~"Prolific",
+                         app == "aygooglecom" ~ "google.com", app == "ocatalogusmintgov" ~ "catalog.usmint.gov", app == "ypTikTok" ~ "TikTok",
+                         app == "eSBumble" ~ "Bumble", app == "MinecraftEar1hrs" ~"Mincraft Earth", app == "nHinge" ~ "Hinge",
+                         app == "Mai" ~ "Mail", app == "otes" ~ "Notes", app == "rySafari" ~ "Safari",
+                         app == "ywTwitter" ~ "Twitter", app == "Qodscout" ~ "dscout", app == "DRedditZ" ~ "Reddit",
+                         app == "aRoblox" ~ "Roblox", app == "ASafari" ~ "Safari", app == "aonAmazon" ~ "Amazon",
+                         app == "Agooglecom" ~ "google.com", app == "NNetflix" ~ "Netflix", app == "ijSafari" ~ "Safari",
+                         app == "YouTubey" ~ "YouTube", app == "DTikTok" ~ "TikTok", app == "archiveofourownorg" ~ "archiveofourown.org",
+                         app == "rAppStore" ~ "App Store", app == "BMessagesy" ~ "Messages", app == "aChromey" ~ "Chrome",
+                         app == "maNonogramcom" ~ "Nonogram.com", app == "FindM" ~ "Find My", app == "Sudokucom" ~ "Sudoku.com",
+                         app == "tApollo" ~ "Apollo", app == "oAmazonMusic" ~ "AmazonMusic", app == "JpTikTok" ~ "TikTok",
+                         app == "SsPokémonGo" ~ "PokémonGo", app == "YahooNewsLiveBreakingUS" ~ "Yahoo News", app == "iGmail"~ "Gmail",
+                         app == "HomescapesY" ~ "Homescapes", app == "2048m" ~ "2048", app == "crowdtapcom" ~ "crowdtap.com",
+                         app == "yySafari" ~ "Safari", app == "reuterscom" ~ "reuters.com", app == "YouTubeWatchListen" ~ "YouTube",
+                         app == "bkcom" ~ "bk.com", app == "mailgooglecom" ~ "mail.google.com", app == "wwwkickassanimers" ~"www.kickassanime.rs",
+                         app == "qCalculatory" ~ "Calculator", app == "Messagesy" ~ "Messages", app == "Instagramy" ~ "Instagram",
+                         app == "DIbotta" ~ "Ibotta", app == "iyAppStore"~ "App Store", app == "yySnapchat" ~ "Snapchat",
+                         app == "yjgooglecom" ~ "google.com", app == "iSMaps" ~ "Maps", app == "yjaacom" ~ "aa.com",
+                         app == "JGoogle" ~ "Google", app == "JChrome" ~ "Chrome", app == "zChrome" ~ "Chrome",
+                         app == "ryfreeintertvcom" ~ "freeintertv.com", app == "SsSpotify" ~ "Spotify", app == "oInstacart" ~ "Instacart",
+                         app == "BSReddit" ~ "Reddit", app == "prizerebelcom" ~ "prizerebel.com", app == "Spotif" ~ "Spotify",
+                         app == "cFacebooky" ~ "Facebook", app == "Discordy" ~ "Discord", app == "DPinterest" ~ "Pinterest",
+                         app == "appprolificco" ~ "Prolific", app == "BRobinhood" ~ "Robinhood", app == "yyZillow" ~ "Zillow",
+                         app == "dailymailcouk" ~ "dailymail.co.uk", app == "outlooklivecom" ~ "outlook.live.com",
+                         app == "googlecouk" ~ "google.co.uk", app == "MOD4m" ~ "MOD4", app == "appmymusicstaffcom" ~ "app.mymusicstaff.com",
+                         app == "gFacebook" ~ "Facebook", app == "cFacebook" ~ "Facebook", app == "BDuolingo" ~ "Duolingo",
+                         app == "ihStocks" ~ "Stocks", app == "jFacebook" ~ "Facebook", app == "rgooglecom" ~ "google.com",
+                         app == "rSafari" ~ "Safari", app == "ySafari" ~ "Safari", app == "ijSafariy" ~ "Safari",
+                         app == "rappprolificco" ~ "Prolific", app == "BVenmo" ~ "Venmo", app == "qChrome" ~ "Chrome",
+                         app == "Phon" ~ "Phone", app == "SInstagram" ~ "Instagram", app == "aSBLIVE" ~ "SBLIVE",
+                         app == "ijcnncom" ~ "cnn.com", app == "DFindMy" ~ "Find My", app == "aTikTok" ~ "TikTok",
+                         app == "aPhoenix" ~ "Phoenix", app == "imangareader" ~ "mangareader", app == "DTwitch" ~ "Twitch",
+                         app == "SsShopkick" ~ "Shopkick", app == "YouTubez" ~ "YouTube", app == "ClashofClansz" ~ "ClashofClans",
+                         app == "Snapchatz" ~ "Snapchat", app == "xMessages" ~ "Messages", app == "Reddity" ~ "Reddit",
+                         app == "BWEBTOON" ~ "WEBTOON", app == "BT21m" ~ "BT21", app == "TsBTSWORLD" ~ "BTSWORLD",
+                         app == "mAmazony" ~ "Amazon", app == "yxvideoscom" ~"xvideos.com", app == "nmZoom" ~ "Zoom",
+                         app == "VyNetflix" ~ "Netflix", app == "rygooglecom" ~ "google.com", app == "Outlooky" ~ "Outlook",
+                         app == "uUserTesting" ~ "UserTesting", app == "pyBUNT" ~ "BUNT", app == "Instagramz" ~ "Instagram",
+                         app == "knewzcom" ~ "knewz.com", app == "PySafari" ~ "Safari", app == "Spotifyy" ~ "Spotify",
+                         app == "yTwittery" ~ "Twitter", app == "BWhatsApp" ~ "WhatsApp", app == "mSnapchat" ~ "Snapchat",
+                         app == "pblind" ~ "blind", app == "swappacom" ~ "swappa.com", app == "nLinkedIn" ~ "LinkedIn",
+                         app == "duckduckgocom" ~ "duckduckgo.com", app == "Aidlemomentumcom" ~ "idlemomentum.com", app == "Astagingidlemomentumcom" ~ "idlemomentum.com",
+                         app == "DTikToky" ~ "TikTok", app == "bStreetbees" ~"Streetbees", app == "aysoundgasmnet" ~ "soundgasm.net",
+                         app == "cbssportscom" ~ "cbssports.com", app == "aCalculator" ~ "Calculator", app == "SWhatsApp" ~ "WhatsApp",
+                         app == "ojtempurpediccom" ~ "tempurpedic.com", app == "iCNN" ~ "CNN", app == "forumchorusfm" ~ "forum.chorus.fm",
+                         app == "Nonogramcom"~ "Nonogram.com", app == "dlivetvy" ~ "dlive.tv", app == "Throwdowny" ~ "Throwdown",
+                         app == "BDReddit" ~ "Reddit", app == "iChess" ~ "Chess", app == "Photosy" ~ "Photos",
+                         app == "removedditcom" ~ "removeddit.com", app == "yGenshinImpact" ~ "Genshin Impact", app == "GenshinImpact" ~ "Genshin Impact",
+                         app == "SYlichess" ~ "lichess", app == "xMessenger" ~ "Messenger", app == "Messengery" ~ "Messenger",
+                         app == "BWeChat" ~ "WeChat", app == "FacebookZ" ~ "Facebook", app == "RedditZ" ~ "Reddit",
+                         app == "zoyacom" ~ "zoya.com", app == "eMaps" ~ "Maps", app == "yPodcasts" ~ "Podcasts",
+                         app == "aHQ" ~ "HQ", app == "g4usyougovcom" ~ "g4-us.yougov.com", app == "surveyusconfirmitcom" ~ "survey.us.confirmit.com",
+                         app == "sbiTubi" ~ "Tubi", app == "SSHEIN" ~ "SHEIN", app == "aBlades" ~ "Blades",
+                         app == "InstagramY" ~ "Instagram", app == "BMessagesY" ~ "Messages", app == "Libb" ~ "Libby",
+                         app == "iAnimalRestaurant" ~ "AnimalRestaurant", app == "PvZy"~ "PvZ 2", app == "supportubisoftcom" ~ "support.ubisoft.com", 
+                         app == "assassinscreedfandomcom" ~"assassinscreed.fandom.com", app == "alSpider" ~ "Spider", app == "yJToot" ~ "Toot!",
+                         app == "5DReddit"~ "Reddit", app == "cnncomy" ~ "cnn.com", app == "googlecomy"~ "google.com",
+                         app == "politicocomy" ~ "politico.com", app == "ySnapchat" ~ "Snapchat", app == "xInstagram" ~ "Instagram",
+                         app == "xSnapchat" ~ "Snapchat", app == "cnncom" ~ "cnn.com", app == "iPhotos" ~ "Photos",
+                         app == "SyCalculator" ~ "Calculator", app == "xGoogleDrivey" ~ "GoogleDrive", app == "JMessages" ~ "Messages",
+                         app == "fanfictionnet" ~ "fanfiction.net", app == "aDisney" ~ "Disney", app == "reNonogramPuzzle" ~ "Nonogram Puzzle",
+                         app == "irozukuorg" ~ "irozuku.org", app == "sieHulu" ~ "Hulu", app == "mStream" ~ "Stream",
+                         app == "yDraftKings" ~ "DraftKings", app == "JMessenger" ~ "Messenger", app == "aBabyTracker" ~ "BabyTracker",
+                         app == "WEBTOONy" ~ "WEBTOON", app == "eJetpacky" ~ "Jetpack", app == "taBoardKingsy" ~ "Board Kings",
+                         app == "BDiscordy" ~ "Discord", app == "Twitchy" ~ "Twitch", app == "DTikTokz" ~ "TikTok",
+                         app == "rmCookingCraze" ~ "Cooking Craze", app == "jigsawpuzzlesio" ~ "jigsawpuzzles.io", app == "fpFieldAgent" ~ "Field Agent",
+                         app == "YouTubeWatchListenSt" ~ "YouTube", app == "eBayBuysellandsave" ~ "eBay", app == "Safariri" ~ "Safari",
+                         app == "aInstagram" ~ "Instagram", app == "yInstagramy" ~ "Instagram", app == "SInstagramy" ~ "Instagram",
+                         app == "Followersy" ~ "Followers", app == "Arl" ~ "Arlo", app == "oTwitter" ~ "Twitter",
+                         app == "BWizardsUnite" ~ "Wizards Unite", app == "Ajackboxtv" ~ "jackbox.tv", app == "yySnapchatz" ~ "Snapchat",
+                         app == "iMusic" ~ "Music", app == "wmVOZEE" ~ "VOZEE", app == "MwW2m" ~ "MW2",
+                         app == "kiTunesStore" ~ "iTunes Store", app == "YouTubeWatchListenStr" ~ "YouTube", app == "SMaps" ~ "Maps",
+                         app == "tTumblr" ~ "Tumblr", app == "eBumble" ~ "Bumble", app == "Tinderz" ~ "Tinder",
+                         app == "yjSafari" ~ "Safari", app == "iTwitch" ~ "Twitch", app == "GoogleChrome" ~ "Chrome",
+                         app == "aAmazon" ~ "Amazon", app == "EEtsy" ~ "Etsy", app == "aMaps" ~ "Maps",
+                         app == "Snapchaty" ~ "Snapchat", app == "xPhotos" ~ "Photos", app == "7DTeams" ~ "Teams",
+                         app == "SPokémonGO" ~ "PokémonGO", app == "aIcarusM" ~ "IcarusM", app == "APOPSlots" ~ "POP! Slots",
+                         app == "aMysticMessenger" ~ "MysticMessenger", app == "xPhotosy" ~ "Photos", app == "fnMusic" ~ "Music",
+                         app == "OCs" ~ "Docs", app == "Driv" ~ "Drive", app == "SYouTube" ~ "YouTube",
+                         app == "OgChrome" ~ "Chrome", app == "zCamScanner" ~ "CamScanner", app == "yNYTimes" ~ "NYTimes",
+                         app == "aTheNewYorkTimes" ~ "NYTimes", app == "BDotsY" ~ "Dots", app == "yUtapri" ~ "Utapri",
+                         app == "serUber" ~ "Uber", app == "yappprolificco" ~ "Prolific", app == "yyappprolificco" ~ "Prolific",
+                         app == "Dr" ~ "Drop", app == "Rai" ~ "Raid", app == "Destiny2m" ~ "Destiny2",
+                         app == "jFindMy" ~ "FindMy", app == "NNews" ~ "News", app == "inLinkedin" ~ "Linkedin",
+                         app == "LAcrobat" ~ "Acrobat", app == "iSMapsy" ~ "Maps", app == "ojgooglecom" ~ "google.com",
+                         app == "yjZillow" ~ "Zillow", app == "ySurveyJunkie" ~ "SurveyJunkie", app == "yUserTesting" ~ "UserTesting",
+                         app == "yInstagram" ~ "Instagram", app == "Sportsy" ~ "Sports", app == "zwReadyGames" ~ "Ready Games",
+                         app == "SJetpacky" ~ "Jetpack", app == "BSwagbucksy" ~ "Swagbucks", app == "PocketMiney" ~ "Pocket Mine",
+                         app == "aABooks" ~ "Books", app == "aBooks" ~ "Books", app == "ryjackboxtv" ~ "jackbox.tv",
+                         app == "jackboxtv" ~ "jackbox.tv", app == "aGoogle" ~ "Google", app == "MinecraftEar1hra" ~ "Minecraft Earth",
+                         app == "axSportsbook" ~ "Sportsbook", app == "KHUxy" ~ "KHUx", app == "dSlickdeals" ~ "Slickdeals",
+                         app == "JCalculator" ~ "Calculator", app == "zMaily" ~ "Mail", app == "BabyTrackery" ~ "Baby Tracker",
+                         app == "Cameray" ~ "Camera", app == "BWalmart" ~ "Walmart", app == "BMusic" ~ "Music",
+                         app == "TikTokTrendsStartHere" ~ "TikTok", app == "qnMusic" ~ "Music", app == "DMessages" ~ "Messages",
+                         app == "pDuckDuckGo" ~ "DuckDuckGo", app == "xBox" ~ "Box", app == "lsSchwab" ~ "Schwab",
+                         app == "uwHulu" ~ "Hulu", app == "iySafari" ~ "Safari", app == "ySafariy" ~ "Safari",
+                         app == "éReddit" ~ "Reddit", app == "yyMercari" ~ "Mercari", app == "Facebookz" ~ "Facebook",
+                         app == "tumblrtumblir" ~ "Tumblr", app == "ySlots" ~ "Slots", app == "aSweet" ~ "Sweet",
+                         app == "mMusic" ~ "Music", app == "Bbyte" ~ "byte", app == "BReminders" ~ "Reminders",
+                         app == "BZoom" ~ "Zoom", app == "PMessages" ~ "Messages", app == "iTMusic" ~ "Music",
+                         app == "QQmee" ~ "Qmee", app == "IClashRoyale" ~ "Clash Royale", app == "aWikipedia" ~ "Wikipedia",
+                         app == "jSolitaireCube" ~ "Solitaire Cube", app == "OTarget" ~ "Target", app == "aBCU" ~ "BCU",
+                         app == "yjuhaulcom" ~ "uhaul.com", app == "yBUNT" ~ "BUNT", app == "TikTokz" ~ "TikTok",
+                         app == "Twitterz" ~ "Twitter", app == "iswagbuckscom" ~ "swagbucks.com", app == "rySafariy" ~ "Safari",
+                         app == "yClock" ~ "Clock", app == "ePodcasts" ~ "Podcasts", app == "zMail" ~ "Mail",
+                         app == "Hul" ~ "Hulu", app == "MEGAy" ~ "MEGA", app == "yySnapchaty" ~ "Snapchat",
+                         app == "IThrowdown" ~ "Throwdown", app == "SSteamy" ~ "Steam",app == "APinterest" ~ "Pinterest",
+                         app == "SimCityy" ~ "SimCity", app == "izCovety" ~ "Covet", app == "ywTwittery" ~ "Twitte", 
+                         app == "jCamera" ~ "Camera", app == "JPhone" ~ "Phone", app == "YouTubeY" ~ "YouTube", 
+                         app == "mnMathwayy" ~ "Mathway", app == "aPokémonGO" ~ "PokémonGO", app == "iMusi" ~ "Musi", 
+                         app == "cApollo" ~ "Apollo", app == "xSafari" ~ "Safari", app == "DTeams" ~ "Teams", 
+                         app == "Discordz" ~ "Discord", app == "Aulu" ~ "Hulu", app == "aMonopoly" ~ "Monopoly", 
+                         app == "zQuickThoughts" ~ "QuickThoughts", app == "yMarcoPoloy" ~ "Marco Polo", app == "Mapsy" ~ "Maps", 
+                         app == "WeChaty" ~ "WeChat", app == "yWikipedia" ~ "Wikipedia", app == "MessengerY" ~ "Messenger", 
+                         app == "amAmazon" ~ "Amazon", app == "APinterest" ~ "Pinterest", app == "BNotes" ~ "Notes", 
+                         app == "BAnswer" ~ "Answer", app == "zyZillow" ~ "Zillow", app == "ziMaily" ~ "Mail", 
+                         app == "Gmaily" ~ "Gmail", app == "aFinance" ~ "Finance", app == "Stocktwitsy" ~ "Stocktwits", 
+                         app == "yySafariy" ~ "Safari", app == "Redditz" ~ "Reddit", app == "Duolingoy" ~ "Duolingo", 
+                         app == "Hangoutsy" ~ "Hangouts", app == "iFiles" ~ "Files", app == "pVoiceMemos" ~ "VoiceMemos", 
+                         app == "yjbodycandycom" ~ "bodycandy.com", app == "dDailymotion" ~ "Dailymotion", app == "eMusic" ~ "Music", 
+                         app == "afari" ~ "Safari", app == "aBUNT" ~ "BUNT", app == "iWholeFoods" ~ "WholeFoods",
+                         app == "DesignHomey" ~ "Design Home", app == "BrawlStarsy" ~ "Brawl Stars", app == "BrawlStars" ~ "Brawl Stars",
+                         app == "DpMessages" ~ "Messages", app == "Students" ~ "Student", app == "weGrubhub" ~ "Grubhub",
+                         app == "dsBitLife" ~ "BitLife", app == "eyApolloy" ~ "Apollo", app == "fFacebooky" ~ "Facebook", 
+                         app == "EpicSeveny" ~ "EpicSeven", app == "meAmazon" ~ "Amazon", app == "sLoveIsland" ~ "Love Island", 
+                         app == "ASurveysy" ~ "Surveys", app == "eBa" ~ "eBay", app == "lBlockheads" ~ "Blockheads",   
+                         app == "iyDraftKings" ~ "DraftKings", app == "BWeChaty" ~ "WeChat", app == "StocksTrackery" ~ "StocksTracker", 
+                         app == "neSchwab" ~ "Schwab", app == "iHouseparty" ~ "Houseparty", app == "WwWordss" ~ "Words 2", 
+                         app == "YouTubeMusicy" ~ "YouTube Music", app == "DFieldAgent" ~ "FieldAgent", app == "ogeeni" ~ "geeni", 
+                         app == "GoogleMapsy" ~ "GoogleMaps", app == "yCytusII" ~ "Cytus II", app == "Agooglecomy" ~ "google.com", 
+                         app == "wheStocks" ~ "Stocks", app == "Qodscouty" ~ "dscout", app == "iSmallTowny" ~ "Small Town",  
+                         app == "Months" ~ "9 Months", app == "CrazyBowlingy" ~ "Crazy Bowling", app == "ojdominiongames" ~ "dominion.games",  
+                         app == "qSolitaireCube" ~ "Solitaire Cube", app == "JDoorDashFoodDelivery" ~ "DoorDash", app == "PvZY" ~ "PvZ 2",  
+                         app == "everydice" ~ "verydice", app == "ySolitaireFarmandFamily" ~ "Solitaire: Farm and Family", app == "ymyVEGASBlackjack" ~ "myVegas Blackjack",  
+                         app == "ADreamEscapey" ~ "Dream Escape", app == "ibKHQLocalNewsY" ~ "KHQ Local News", app == "Aarchiveofourownorg" ~ "archiveofourown.org",  
+                         app == "mNonogramcom" ~ "Nonogram.com", app == "SuperStarPledisR" ~ "SuperStar Pledis", app == "yygrubhubcom" ~ "grubhub.com", 
+                         app == "yTwitterY" ~ "Twitter", app == "beTownship" ~ "Township", app == "CChrome" ~ "Chrome", 
+                         app == "zySafariy" ~ "Safari", app == "yCamera" ~ "Camera", app == "yeBUNT" ~ "BUNT", 
+                         app == "WhatsAppy" ~ "WhatsApp", app == "CameraY" ~ "Camera", app == "AGmail" ~ "Gmail", 
+                         app == "JGoogleY" ~ "Google", app == "SpotifyY" ~ "Spotify", app == "Shoppery" ~ "Shopper", 
+                         app == "ATetrisY" ~ "Tetris", app == "BDrop" ~ "Drop", app == "aKroger" ~ "Kroger", 
+                         app == "ATelegram" ~ "Telegram", app == "rGooglePhotos" ~ "GooglePhotos", app == "FaceTimey" ~ "FaceTime", 
+                         app == "yGmail" ~ "Gmail", app == "Torebay" ~ "Toreba", app == "Hin" ~ "Hinge", 
+                         app == "yMaily" ~ "Mail", app == "ranAMAZON" ~ "Amazon", app == "JTikTok" ~ "TikTok", 
+                         app == "aQmeey" ~ "Qmee", app == "LinkedInR" ~ "LinkedIn", app == "wDARZ" ~ "sTARZ", 
+                         app == "MyMoviesy" ~ "MyMovies", app == "iSudoku" ~ "Sudoku", app == "cPhone" ~ "Phone", 
+                         app == "suHulu" ~ "Hulu", app == "wyTwitter" ~ "Twitter", app == "tCompanion" ~ "Companion", 
+                         app == "AmazonShoppingY" ~ "Amazon", app == "pAmeritrade" ~ "Ameritrade", app == "FateGOy" ~ "FateGO", 
+                         app == "theScoreY" ~ "theScore", app == "eyWhatsApp" ~ "WhatsApp", app == "Atorridcom" ~ "torridcom", 
+                         app == "Phoney" ~ "Phone", app == "yMarcoPolo" ~ "Marco Polo", app == "rAppStoreY" ~ "App Store", 
+                         app == "sayeBay" ~ "eBay", app == "rygooglecomy" ~ "google.com", app == "oygooglecomy" ~ "google.com", 
+                         app == "aYouTubeWatchListenStream" ~ "YouTube", app == "aMyFitnessPal" ~ "MyFitnessPal", app == "DSMessages" ~ "Messages", 
+                         app == "ojgooglecomy" ~ "google.com", app == "oOdscouty" ~ "dscout", app == "aClashRoyaley" ~ "ClashRoyale", 
+                         app == "BQmeey" ~ "Qmee", app == "oHearthstone" ~ "Hearthstone", app == "waSephora" ~ "Sephora", 
+                         app == "aNikeTraining" ~ "Nike Training", app == "eySlots" ~ "Slots", app == "pornhubcomy" ~ "pornhub.com", 
+                         app == "PostmatesFoodDelivery" ~ "Postmates", app == "ryappprolificcoy" ~ "Prolific", app == "aDragalia" ~ "Dragalia", 
+                         app == "NDelta" ~ "Delta", app == "IVoiceMemos" ~ "VoiceMemos", app == "fFFacebook" ~ "Facebook", 
+                         app == "calSolitaireCube" ~ "Solitaire Cube", app == "mnBubbleShooter" ~ "BubbleShooter", app == "ToonBlasty" ~ "ToonBlast", 
+                         app == "ndiMovieY" ~ "iMovie", app == "MARIORUNY" ~ "MARIO RUN", app == "BrawlStarsY" ~ "Brawl Stars", 
+                         app == "QVSCO" ~ "VSCO", app == "aESPNcricinfo" ~ "ESPNcricinfo", app == "DCryptocom" ~ "Crypto.com", 
+                         app == "mWenxXueCity" ~ "WenxXueCity", app == "Acrowdthecatalyxcom" ~ "crowdthecatalyx.com", app == "JpTikToky" ~ "TikTok", 
+                         app == "iCastbox" ~ "Castbox", app == "SBinaryDots" ~ "Binary Dots", app == "BSmartNewsy" ~ "SmartNews", 
+                         app == "PayPalMobileCash" ~ "PayPal", app == "Mim" ~ "Mimo", app == "yjworkermturkcomy" ~ "worker.mturk.com", 
+                         app == "Atftacticsgg" ~ "tftactics.gg", app == "éWarandMagic" ~ "War and Magic", app == "WordSearchy" ~ "Word Search", 
+                         app == "Ayandycom" ~ "yandy.com", app == "ojreseteracom" ~ "resetera.com", app == "elitefitnesscomy" ~ "elitefitness.com", 
+                         app == "DoorDashFoodDelivery" ~ "DoorDash", 
+                         TRUE ~ app))
+
+data$wave <- wave
+```
+
+# Save Data:
+```{r}
+#| label: save-data
+
+write_csv(data, file = paste0("wave",wave,"data",".csv"))
+```
+
+```{r}
+manual_extraction
+```
+# Export list for manual extraction
+```{r}
+write_csv(manual_extraction, file = paste0("wave",wave,"manual_extraction_list",".csv"))
+```
+
+
+Check
+```{r}
+data %>% 
+  group_by(responseID) %>% tally()
+```

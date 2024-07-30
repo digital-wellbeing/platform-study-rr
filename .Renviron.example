@@ -3,6 +3,9 @@
 # local onedrive path to the xbox data "oii_data_2022_07_01.txt"
 xboxDataPath=""
 
+# local onedrive path to the sample iOS screenshot data (inside the Registered reports folder)
+screenshotsPath=""
+
 # Qualtrics API key and base url
 # Find these at Qualtrics account settings page
 QUALTRICS_API_KEY=""
