@@ -250,6 +250,8 @@ post_manual_two <- function(image_data){
 
 # Process Images
 
+*** WORK IN PROGRESS, TRYING TO IMPROVE ACCURACY OF EXTRACTION *** 
+
 ```{r}
 #| label: process-images
 
@@ -259,8 +261,12 @@ all_files <- list.files(path = folder, full.names = TRUE)
 
 for (file in all_files) {
   
-letters <- tesseract(options = list(tessedit_char_whitelist = c(LETTERS,"01235679",letters)))  
-  
+tesseract_lang <- tesseract("eng")
+config <- list(tessedit_char_whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", # Adjust as needed
+               psm = 11, # Change PSM according to your needs
+               oem = 3) # Change OEM according to your needs
+
+# Perform OCR
   image_read(file) |> 
     image_negate() |> 
     image_threshold(type = "white",
@@ -274,6 +280,7 @@ letters <- tesseract(options = list(tessedit_char_whitelist = c(LETTERS,"0123567
     image_contrast(sharpen = 1) |> 
     image_crop(paste0(info$width*.9, "x", info$height, "-80")) |>
     image_resize("200%") |> 
+    image_ocr(engine = tesseract_lang, options = config)
     tesseract::ocr(engine = letters) |> 
     postProcessing()
   
