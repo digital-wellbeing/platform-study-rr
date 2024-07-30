@@ -196,6 +196,15 @@ synXbox <- synPlayHistory |>
 # TODO
 ```
 
+
+```{r}
+#| label: sim-mobile
+
+# TODO
+```
+
+
+
 # Simulate self-report data (diary and panel)
 
 We now move to the self-report data. For the panel-level data, we can bootstrap from the existing NoA cross-sectional survey, which will have very similar measures. 

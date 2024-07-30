@@ -15,6 +15,7 @@ bibliography: references.bib
 ```{r}
 #| label: load-libraries
 
+library(tidyverse)
 library(lme4)
 
 ```
@@ -22,7 +23,9 @@ library(lme4)
 ```{r}
 #| label: load-data
 
-dat <- read_csv("data-synthetic/syndata.csv")
+dat <- read_csv("data-synthetic/synDiary.csv")
+nin <- read_csv("data-synthetic/synNintendo.csv")
+xbox <- read_csv("data-synthetic/synXbox.csv")
 ```
 
 
