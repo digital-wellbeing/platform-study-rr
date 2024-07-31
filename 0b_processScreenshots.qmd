@@ -101,7 +101,7 @@ processText <- function(text) {
         str_detect(value, "^(Th|th)\\s+\\d+m$") |         # Time format Th Ym
         str_detect(value, "^\\d+m$") # Time format Ym
     ) |> 
-    filter(lag(value) %in% categories | row_number() == 1) |> # only keep the timestamps that match up with the categories
+    filter(lag(value) %in% categories | value %in% categories) |> # only keep the timestamps that match up with the categories
     mutate(
       value = str_replace(value, "^(Th|th)", "1h")     # Replace Th with 1h
     ) |> 
@@ -170,12 +170,12 @@ Now to the meat of the endeavor - for each file in the screenshots data, we will
 # Define categories to look for in the text - to be updated and expanded in light of new categories, OCR errors, and so on
 categories <- c("Entertainment", "Social", "Information & Reading", "Games", "Productivity & Finance", "Travel", "Other")
 
-extractData(screenshots[2])
-
-screenshots[4] |> 
-  processImage() |> 
-  ocr(engine = tesseract(options = list(tessedit_pageseg_mode = 11))) |> 
-  processText()
+# for debugging 
+# extractData(screenshots[2])
+# screenshots[5] |> 
+#   processImage() |> 
+#   ocr(engine = tesseract(options = list(tessedit_pageseg_mode = 11))) |> 
+#   processText()
 
 # Perform OCR
 tic() # set timer
@@ -189,20 +189,5 @@ toc()
 ```{r}
 #| label: save-data
 
-write_csv(data, file = paste0("wave",wave,"data",".csv"))
-```
-
-```{r}
-manual_extraction
-```
-# Export list for manual extraction
-```{r}
-write_csv(manual_extraction, file = paste0("wave",wave,"manual_extraction_list",".csv"))
-```
-
-
-Check
-```{r}
-data %>% 
-  group_by(responseID) %>% tally()
+write_csv("data/results.csv")
 ```
