@@ -15,7 +15,12 @@ bibliography: references.bib
 
 # TODOs
 - add response ID
-- extract and add dates
+- extract dates
+- stress-test
+- flag invalid screenshots
+
+# DONE
+- differentiate light/dark mode
 - refactor
 
 # Load packages
@@ -42,31 +47,40 @@ eng <- tesseract("eng")
 ```{r}
 #| label: set-folder
 
-screenshots <- list.files(path = Sys.getenv("screenshotsPath"), full.names = TRUE)
+screenshots <- list.files(path = Sys.getenv("screenshotsPath"), 
+                          full.names = TRUE)
 ```
 
 # Define functions for later use
 
-## Process images
+## Function: Process images
 
 ```{r}
 #| label: process-images
 
 processImage <- function(file) {
-  blacks <- c("#1C1C1E", "#242426") #to determine if the image is in dark or light mode
-  
+
   info <- image_read(file) |> 
     image_info()
+  
+  # set thresholds for light mode vs dark mode screenshots
+  if ("#FFFFFF" %in% get_colors(file, min_share = 0.30)$col_hex) {
+    whiteThreshold <- "90%"
+    blackThreshold <- "80%"
+  } else {
+    whiteThreshold <- "30%"
+    blackThreshold <- "95%"
+  }
   
   # load and de-noise the screenshot 
   image_read(file, density = 300) |> 
     
     # thresholding increases the contrast in letters - this will need to be adjusted for light vs. dark mode screenshots
     image_threshold(type = "white",
-                    threshold = "30%",
+                    threshold = whiteThreshold,
                     channel = NULL) |>
     image_threshold(type = "black",
-                    threshold = "95%",
+                    threshold = blackThreshold,
                     channel = NULL) |>
     image_deskew(threshold = 40) |> 
     image_contrast(sharpen = 1) |> 
@@ -83,13 +97,14 @@ convertMinutes <- function(time_str) {
 }
 ```
 
-## Process text
+## Function: Process text
 
 ```{r}
 #| label: process-text
 
 # extract and organize relevant data
 processText <- function(text) {
+  
   text |> 
     str_remove_all("(?s).*APPS & WEBS\\s*\\n") |> 
     str_remove_all("(?i)Show More.*") |> 
@@ -119,7 +134,7 @@ processText <- function(text) {
 }
 ```
 
-## Master function to run through the whole pipeline - processImage, OCR, processText
+## Function: Master pipeline - processImag + OCR + processText
 
 ```{r}
 #| label: master-function
@@ -157,6 +172,20 @@ pre_identification_manual <- function(text) {
 }
 ```
 
+## Debug
+
+```{r}
+#| label: debug
+#| eval: false
+
+screenshots[6] |>
+  processImage() |>
+  ocr(engine = tesseract(options = list(tessedit_pageseg_mode = 11))) |>
+  processText()
+
+```
+
+
 # Extract Data from Images
 
 Now to the meat of the endeavor - for each file in the screenshots data, we will:
@@ -169,13 +198,6 @@ Now to the meat of the endeavor - for each file in the screenshots data, we will
 
 # Define categories to look for in the text - to be updated and expanded in light of new categories, OCR errors, and so on
 categories <- c("Entertainment", "Social", "Information & Reading", "Games", "Productivity & Finance", "Travel", "Other")
-
-# for debugging 
-# extractData(screenshots[2])
-# screenshots[5] |> 
-#   processImage() |> 
-#   ocr(engine = tesseract(options = list(tessedit_pageseg_mode = 11))) |> 
-#   processText()
 
 # Perform OCR
 tic() # set timer
