@@ -7,7 +7,6 @@
 *.html
 *_files/
 data/
-data-synthetic/
 /.quarto/
 .Renviron
 .tmp.driveupload/*
