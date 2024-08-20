@@ -1,25 +1,17 @@
 ---
-output: html_document
-editor_options: 
-  chunk_output_type: console
-execute: 
-  warning: false
-page-layout: full
-format:
-  html:
-    code-fold: true
-    code-summary: "Show the code"
-bibliography: references.bib
----
-
----
-title: "Untitled"
-output: ''
-date: "2024-08-19"
+title: "Synthetic Data Generation"
+author: "Tamas Foldes"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2 # Optional: Set the depth of the table of contents
+    toc_float: true # Optional: Floating TOC
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
 ## Prepare Panel data
@@ -31,11 +23,12 @@ target_n <- 1000
 diaryWaves <- 30
 panelWaves <- 6
 studyDays <- 100
-studyStartDate <- as_datetime("2024-05-01 00:00:00")
+studyStartDate <- as_datetime("2024-08-20 00:00:00")
 ```
 
 ### Generate PIDs
-```{r}
+
+```{r pid-1, cache=TRUE}
 # generate 1000 10-digit random string that are unique and store as a vector
 set.seed(123)
 # Set the target number of observations per wave
@@ -83,9 +76,10 @@ panel_balanced %>%
   group_by(wave) %>%
   summarise(n = n())
 ```
+
 ### Allocate PIDs
 
-```{r}
+```{r pid-2, cache=TRUE}
 library(dplyr)
 
 # Create unique PIDs for each participant
@@ -128,13 +122,13 @@ panel_balanced <- panel_balanced %>%
 # Glimpse the updated tibble
 glimpse(panel_balanced)
 
-#save the data to data-synthetic as RDS
-saveRDS(panel_balanced, "data-synthetic/panel_balanced.rds")
+#save the data to synthetic-data as RDS
+saveRDS(panel_balanced, "synthetic-data/panel_balanced.rds")
 ```
 
 ## Prepare Diary data
 
-```{r}
+```{r diary-1, cache=TRUE}
 number_of_diary_days <- diaryWaves
 
 library(tidyverse)
@@ -166,7 +160,7 @@ diary_tibble %>%
 
 ```
 
-```{r}
+```{r diary-2, cache=TRUE}
 # Assuming you have 'panel_balanced' and 'diary_tibble' dataframes
 
 # Get unique PIDs
@@ -207,13 +201,13 @@ diary_tibble_sampled <- diary_tibble_sampled %>%
         EndDate = EndDate + days(dateDifference)
     )
 
-# export the data to data-synthetic as RDS
-saveRDS(diary_tibble_sampled, "data-synthetic/diary_balanced.rds")
+# export the data to synthetic-data as RDS
+saveRDS(diary_tibble_sampled, "synthetic-data/diary_balanced.rds")
 ```
 
 ## Prepare Steam Data
 
-```{r}
+```{r steam, cache=TRUE}
 
 library(dplyr)
 library(readr)
@@ -284,13 +278,13 @@ comment(sampled_tibble$days_since_study_start) <- "Days since the start of the s
 # repace played with logical
 sampled_tibble$played <- sampled_tibble$played == "Yes"
 
-# save the data to data-synthetic as RDS
-saveRDS(sampled_tibble, "data-synthetic/steam_balanced.rds")
+# save the data to synthetic-data as RDS
+saveRDS(sampled_tibble, "synthetic-data/steam_balanced.rds")
 ```
 
 ## Prepare Nintendo Data
 
-```{r}
+```{r nintendo, cache=TRUE}
 library(dplyr)
 library(readr)
 library(progress)
@@ -317,7 +311,7 @@ pb <- progress_bar$new(total = length(unique(panel_balanced$PID)))
 sampled_tibble <- tibble()
 
 nintendo_user_startindex <- 100
-nintend_user_endindex <- 350
+nintend_user_endindex <- 100 + number_of_nintendo_players
 
 # Iterate through each unique PID in panel_balanced
 for (pid in unique(panel_balanced$PID[nintendo_user_startindex:nintend_user_endindex])) {
@@ -374,11 +368,140 @@ comment(sampled_tibble$operationMode) <- "The mode of operation during the sessi
 comment(sampled_tibble$genres) <- "The genre(s) of the game played, if available."
 comment(sampled_tibble$PID) <- "The unique identifier for the user in the panel."
 
-# save the data to data-synthetic as RDS
-saveRDS(sampled_tibble, "data-synthetic/nintendo_balanced.rds")
+# save the data to synthetic-data as RDS
+saveRDS(sampled_tibble, "synthetic-data/nintendo_balanced.rds")
 
 ```
 
+## Prepare XBOX Data
+
+```{r xbox, cache=TRUE}
+# read tab delimited file oii_data_2022_07_01.txt
+xbox_tibble <- read_tsv("raw/oii_data_2022_07_01.txt")
+
+library(dplyr)
+library(lubridate)
+
+xbox_tibble <- xbox_tibble %>%
+    mutate(
+        DateId = ymd(as.character(DateId)),  # Convert DateId to Date
+        SessionStartTime = mdy_hms(SessionStartTime),  # Convert SessionStartTime to POSIXct
+        SessionEndTime = mdy_hms(SessionEndTime)       # Convert SessionEndTime to POSIXct
+    )
+
+# filter rows where either SessionStartTime or SessionEndTime is NA
+xbox_tibble <- xbox_tibble %>%
+    filter(!is.na(SessionStartTime) & !is.na(SessionEndTime))
+
+# Glimpse the updated tibble
+glimpse(xbox_tibble)
+
+library(dplyr)
+library(readr)
+library(progress)
+
+# Assuming panel_balanced is already loaded and contains a column named PID
+# Read the Nintendo data
+number_of_session_with_xbox_data <- 5
+number_of_xbox_players <- 250
 
 
+# Rename pid to id
+xbox_tibble <- xbox_tibble %>%
+    rename(id = ParticipantId)
 
+# Create a progress bar
+pb <- progress_bar$new(total = length(unique(panel_balanced$PID)))
+
+# Initialize an empty tibble to store the results
+sampled_tibble <- tibble()
+
+xbox_user_startindex <- 200
+xbox_user_endindex <- 200 + number_of_xbox_players
+
+# Iterate through each unique PID in panel_balanced
+for (pid in unique(panel_balanced$PID[xbox_user_startindex:xbox_user_endindex])) {
+    # Randomly sample a user from xbox_tibble
+    sampled_user <- xbox_tibble %>%
+        group_by(id) %>%
+        filter(n() >= number_of_session_with_xbox_data) %>%
+        ungroup() %>%
+        sample_n(1) %>%
+        pull(id)
+    
+    # Get all sessions for the sampled user
+    sampled_sessions <- xbox_tibble %>%
+        filter(id == sampled_user)
+    
+    # Assign the sampled sessions to the current PID
+    sampled_sessions <- sampled_sessions %>%
+        mutate(PID = pid) %>% select(-id)
+    
+    # Bind the sampled sessions to the results tibble
+    sampled_tibble <- bind_rows(sampled_tibble, sampled_sessions)
+    
+    # Update the progress bar
+    pb$tick()
+}
+
+# Rename duration to duration_min
+sampled_tibble <- sampled_tibble %>%
+    mutate(
+        duration_min = as.numeric(SessionEndTime-SessionStartTime) / 60,  # Convert duration from seconds to minutes
+        platform = "XBOX"
+    )
+
+# Calculate the current earliest session start date
+currentEarliestDate <- min(sampled_tibble$SessionStartTime, na.rm = TRUE)
+
+# Calculate the difference in days
+dateDifference <- round(as.numeric(difftime(studyStartDate, currentEarliestDate, units = "days")))
+
+# Shift the sessionStart and sessionEnd dates
+sampled_tibble <- sampled_tibble %>%
+    mutate(
+        SessionStartTime = SessionStartTime + days(dateDifference),
+        SessionEndTime = SessionEndTime + days(dateDifference)
+    )
+
+# Add comments to each column
+comment(sampled_tibble$DateId) <- "Month start date in the form of YYYYMMDD"
+comment(sampled_tibble$GameId) <- "Hashed GameNames in case this is 3rd party titles"
+comment(sampled_tibble$PublisherId) <- "Hashed Publisher name in case this is 3rd Party"
+comment(sampled_tibble$Genre) <- "Primary genre of the title"
+comment(sampled_tibble$SessionStartTime) <- "Session start time stamp"
+comment(sampled_tibble$SessionEndTime) <- "Session end time stamp"
+comment(sampled_tibble$PID) <- "Internal UserId"
+comment(sampled_tibble$duration_min) <- "Duration of the session in minutes"
+comment(sampled_tibble$platform) <- "Platform used for the session"
+
+
+# Glimpse the resulting sampled tibble
+glimpse(sampled_tibble)
+
+# save the data to synthetic-data as RDS
+saveRDS(sampled_tibble, "synthetic-data/xbox_balanced.rds")
+
+```
+
+## Glimpse
+
+```{r}
+# load the data
+steam_tibble <- readRDS("synthetic-data/steam_balanced.rds")
+nintendo_tibble <- readRDS("synthetic-data/nintendo_balanced.rds")
+xbox_tibble <- readRDS("synthetic-data/xbox_balanced.rds")
+panel_balanced <- readRDS("synthetic-data/panel_balanced.rds")
+diary_balanced <- readRDS("synthetic-data/diary_balanced.rds")
+
+print("Panel \n")
+glimpse(panel_balanced)
+print("Diary \n")
+glimpse(diary_balanced)
+print("Steam \n")
+glimpse(steam_tibble)
+print("Nintendo \n")
+glimpse(nintendo_tibble)
+print("XBOX \n")
+glimpse(xbox_tibble)
+```
