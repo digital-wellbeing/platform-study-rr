@@ -10,3 +10,5 @@ data/
 data-synthetic/
 /.quarto/
 .Renviron
+.tmp.driveupload/*
+.tmp.drivedownload/*

@@ -1,0 +1,321 @@
+---
+title: "Study 2: Gaming and Sleep"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+page-layout: full
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+bibliography: references.bib
+---
+
+```{r setup}
+
+library(tidyverse)
+library(lme4)
+
+studyStartTime <- as_datetime("2024-08-20 00:00:00")
+# load data-synthetic\panel_balanced.rds
+panel_balanced <- readRDS("data-synthetic/panel_balanced.rds") # TODO: Panel is missing 
+diary_balanced <- readRDS("data-synthetic/diary_balanced.rds")
+xbox_balanced <- readRDS("data-synthetic/xbox_balanced.rds")
+steam_balanced <- readRDS("data-synthetic/steam_balanced.rds")
+nin_balanced <- readRDS("data-synthetic/nintendo_balanced.rds")
+
+```
+
+```{r prepare}
+# rename genres from nin_balanced
+nin_balanced <- nin_balanced %>%
+  rename(genre = genres)
+
+# create a sessionStart variable for steam_balanced using date and time_hh
+steam_balanced <- steam_balanced %>%
+  mutate(sessionStart = as.POSIXct(paste(date, time_hh), format = "%Y-%m-%d %H"), 
+         sessionEnd = sessionStart+minutes_played)
+
+# rename SessionStartTime and SessionEndTime to sessionStart and sessionEnd in xbox_balanced
+xbox_balanced <- xbox_balanced %>%
+  rename(sessionStart = SessionStartTime, sessionEnd = SessionEndTime, genre=Genre)
+
+# merge xbox_balanced and steam_balanced and nin_balanced using bind_rows 
+gaming_balanced <- bind_rows(xbox_balanced, steam_balanced, nin_balanced)
+
+# calculate minutes_played for gaming_balanced using sessionEnd and sessionStart
+gaming_balanced <- gaming_balanced %>%
+  mutate(minutes_played = as.numeric(difftime(sessionEnd, sessionStart, units = "mins")))
+
+# create a binary variable for gaming_balanced called latenight if the sessionStart is between 23:00 and 06:00
+gaming_balanced <- gaming_balanced %>%
+  mutate(latenight = ifelse(hour(sessionStart) >= 23 | hour(sessionStart) < 6, 1, 0))
+
+# create an isWeekend variable for gaming_balanced if the sessionStart is on a Saturday, Sunday or Friday
+gaming_balanced <- gaming_balanced %>%
+  mutate(isWeekend = ifelse(weekdays(sessionStart) %in% c("Saturday", "Sunday", "Friday"), 1, 0))
+
+# assign each session to a wave based on the date, if the date is within 4 weeks of the start of the study, it is wave 2, if it is between 4 weeks and 8 weeks it is wave 4, if it is between 8 weeks and 12 weeks it is wave 6
+
+# Example data frame
+gaming_balanced <- gaming_balanced %>%
+  mutate(
+    days_since_start = as.numeric(difftime(sessionStart, studyStartTime, units = "days")),
+    wave = case_when(
+      days_since_start <= 4 * 7 ~ 2,
+      days_since_start <= 8 * 7 ~ 4,
+      days_since_start <= 12 * 7 ~ 6,
+      TRUE ~ NA_real_
+    )
+  ) # TODO: check why so many NAs
+
+
+
+# group gaming by PID, wave and latenight and calculate daily average minutes_played
+gaming_balanced.latenight <- gaming_balanced %>%
+  group_by(PID, wave, latenight) %>%
+  summarise(monthly_avg_minutes_played = sum(minutes_played)/28) %>% filter(!is.na(wave), latenight == 1)
+
+# TODO: make sure psqi_4#1_1_* have reasonable values in panel_balanced
+
+# Calculate the minimum and maximum values of the column
+min_val <- min(panel_balanced$`psqi_4#1_1_1`, na.rm = TRUE)
+max_val <- max(panel_balanced$`psqi_4#1_1_1`, na.rm = TRUE)
+# Rescale the values to be between 0 and 12
+panel_balanced$`psqi_4#1_1_1` <- (panel_balanced$`psqi_4#1_1_1` - min_val) / (max_val - min_val) * 12
+# Calculate the minimum and maximum values of the column
+min_val <- min(panel_balanced$`psqi_4#1_1_2`, na.rm = TRUE)
+max_val <- max(panel_balanced$`psqi_4#1_1_2`, na.rm = TRUE)
+# Rescale the values to be between 0 and 12
+panel_balanced$`psqi_4#1_1_2` <- (panel_balanced$`psqi_4#1_1_2` - min_val) / (max_val - min_val) * 60
+```
+
+# H1
+
+## H1a: Late-night gaming is associated with poorer sleep quality.
+```{r h1a}
+
+# select psqi_6 from panel_balanced and left_join to gaming_balanced.latenight by PID and wave
+gaming_balanced.latenight <- panel_balanced %>% select(PID, wave, psqi_6) %>% filter (wave %in% c(2,4,6)) %>%
+  left_join(gaming_balanced.latenight, by = c("PID", "wave"))
+
+# replace NA with 0 in monthly_avg_minutes_played
+gaming_balanced.latenight <- gaming_balanced.latenight %>% mutate(monthly_avg_minutes_played = replace_na(monthly_avg_minutes_played, 0))
+
+psqi_6_mapping <- c("Very bad" = -1, "Fairly bad" = -0.5, "Fairly good" = 0.5, "Very good" = 1)
+
+# Convert the psqi_6 column to numeric values using the mapping
+gaming_balanced.latenight <- gaming_balanced.latenight %>%
+  mutate(psqi_6_numeric = as.numeric(psqi_6_mapping[psqi_6]))
+
+library(lme4)
+# Fit the model
+model.h1a <- lmer(psqi_6_numeric ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | PID), data = gaming_balanced.latenight )
+
+# Summarize the model using modelsummary
+library(modelsummary)
+modelsummary(list(`Model H1a` =model.h1a),
+             statistic = c("conf.int",
+                           "p = {p.value}"))
+
+```
+
+
+## H1b: Late-night gaming is associated with shorter sleep duration.
+
+```{r h1b}
+# panel_balanced <- readRDS("data-synthetic/panel_balanced.rds") # TODO: Panel is missing 
+
+# Define the psqi_compute_comp3 function
+psqi_compute_comp3 <- function(hours_sleep) {
+  4L - cut(hours_sleep, breaks = c(0, 4.999, 5.999, 7, Inf), 
+           labels = FALSE, include.lowest = TRUE, right = TRUE)
+}
+
+# Convert and compute
+panel_balanced <- panel_balanced %>%
+  mutate(
+    psqi_4_1_1_1_hours = as.numeric(`psqi_4#1_1_1`), # Convert hours to numeric
+    psqi_4_1_1_2_hours = as.numeric(`psqi_4#1_1_2`) / 60, # Convert minutes to numeric hours
+    total_hours_sleep = psqi_4_1_1_1_hours + psqi_4_1_1_2_hours, # Compute total hours of sleep
+    psqi_comp3 = psqi_compute_comp3(total_hours_sleep) # Apply the function
+  )
+
+# select psqi_comp3 from panel_balanced and left_join to gaming_balanced.latenight by PID and wave
+gaming_balanced.latenight <- panel_balanced %>% select(PID, wave, psqi_comp3) %>% filter (wave %in% c(2,4,6)) %>%
+  left_join(gaming_balanced.latenight, by = c("PID", "wave"))
+
+# replace NA with 0 in monthly_avg_minutes_played
+gaming_balanced.latenight <- gaming_balanced.latenight %>% mutate(monthly_avg_minutes_played = replace_na(monthly_avg_minutes_played, 0))
+
+library(lme4)
+# Fit the model
+model.h1b <- lmer(psqi_comp3 ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | PID), data = gaming_balanced.latenight )
+
+# Summarize the model using modelsummary
+library(modelsummary)
+modelsummary(list(`Model H1b` = model.h1b),
+             statistic = c("conf.int",
+                           "p = {p.value}"))
+
+```
+
+## H1c: Late-night gaming is associated with lower well-being.
+
+```{r h1c}
+# panel_balanced <- readRDS("data-synthetic/panel_balanced.rds") 
+
+# merge xbox_balanced and steam_balanced and nin_balanced using bind_rows 
+gaming_balanced <- bind_rows(xbox_balanced, steam_balanced, nin_balanced)
+
+# calculate minutes_played for gaming_balanced using sessionEnd and sessionStart
+gaming_balanced <- gaming_balanced %>%
+  mutate(minutes_played = as.numeric(difftime(sessionEnd, sessionStart, units = "mins")))
+
+# create a binary variable for gaming_balanced called latenight if the sessionStart is between 23:00 and 06:00
+gaming_balanced <- gaming_balanced %>%
+  mutate(latenight = ifelse(hour(sessionStart) >= 23 | hour(sessionStart) < 6, 1, 0))
+
+# create an isWeekend variable for gaming_balanced if the sessionStart is on a Saturday, Sunday or Friday
+gaming_balanced <- gaming_balanced %>%
+  mutate(isWeekend = ifelse(weekdays(sessionStart) %in% c("Saturday", "Sunday", "Friday"), 1, 0))
+
+# assign each session to a wave based on the date, if the date is within 4 weeks of the start of the study, it is wave 2, if it is between 4 weeks and 8 weeks it is wave 4, if it is between 8 weeks and 12 weeks it is wave 6
+
+# Example data frame
+gaming_balanced <- gaming_balanced %>%
+  mutate(
+    days_since_start = as.numeric(difftime(sessionStart, studyStartTime, units = "days")),
+    wave = case_when(
+      days_since_start <= 2 * 7 ~ 1,
+      days_since_start <= 4 * 7 ~ 2,
+      days_since_start <= 6 * 7 ~ 3,
+      days_since_start <= 8 * 7 ~ 4,
+      days_since_start <= 10 * 7 ~ 5,
+      days_since_start <= 12 * 7 ~ 6,
+      TRUE ~ NA_real_
+    )
+  ) # TODO: check why so many NAs
+
+# group gaming by PID, wave and latenight and calculate daily average minutes_played
+gaming_balanced.latenight <- gaming_balanced %>%
+  group_by(PID, wave, latenight) %>%
+  summarise(biweekly_avg_minutes_played = sum(minutes_played)/14) %>% filter(!is.na(wave), latenight == 1)
+
+# Create a mapping of the string values to their numeric equivalents
+value_mapping <- c(
+  "1 - None of the time" = 1,
+  "2 - Rarely" = 2,
+  "3 - Some of the time" = 3,
+  "4 - Often" = 4,
+  "5 - All of the time" = 5
+)
+# Identify all columns whose names start with 'wemwbs'
+wemwbs_columns <- c("wemwbs_1", "wemwbs_2", "wemwbs_3", "wemwbs_4", "wemwbs_5", "wemwbs_6", "wemwbs_7")
+# Apply the mapping to these columns
+panel_balanced <- panel_balanced %>% ungroup() %>%
+  mutate(across(all_of(wemwbs_columns), ~ as.numeric(value_mapping[.])))
+
+# calculate a wemwbs_total score for panel_balanced
+panel_balanced <- panel_balanced %>% ungroup() %>%
+  mutate(wemwbs_total = rowSums(select(panel_balanced, wemwbs_columns)))
+
+# select psqi_comp3 from panel_balanced and left_join to gaming_balanced.latenight by PID and wave
+gaming_balanced.latenight <- panel_balanced %>% select(PID, wave, wemwbs_total) %>%
+  left_join(gaming_balanced.latenight, by = c("PID", "wave"))
+
+library(lme4)
+# Fit the model
+model.h1c <- lmer(wemwbs_total ~ biweekly_avg_minutes_played + (1 + biweekly_avg_minutes_played | PID), data = gaming_balanced.latenight )
+
+# Summarize the model using modelsummary
+library(modelsummary)
+modelsummary(list(`Model H1c` = model.h1c),
+             statistic = c("conf.int",
+                           "p = {p.value}"))
+```
+
+## H1d: Late-night gaming is associated with higher daytime sleepiness.
+
+```{r h1d}
+
+# merge xbox_balanced and steam_balanced and nin_balanced using bind_rows 
+gaming_balanced <- bind_rows(xbox_balanced, steam_balanced, nin_balanced)
+
+# calculate minutes_played for gaming_balanced using sessionEnd and sessionStart
+gaming_balanced <- gaming_balanced %>%
+  mutate(minutes_played = as.numeric(difftime(sessionEnd, sessionStart, units = "mins")))
+
+# create a binary variable for gaming_balanced called latenight if the sessionStart is between 23:00 and 06:00
+gaming_balanced <- gaming_balanced %>%
+  mutate(latenight = ifelse(hour(sessionStart) >= 23 | hour(sessionStart) < 6, 1, 0))
+
+# create an isWeekend variable for gaming_balanced if the sessionStart is on a Saturday, Sunday or Friday
+gaming_balanced <- gaming_balanced %>%
+  mutate(isWeekend = ifelse(weekdays(sessionStart) %in% c("Saturday", "Sunday", "Friday"), 1, 0))
+
+# assign each session to a wave based on the date, if the date is within 4 weeks of the start of the study, it is wave 2, if it is between 4 weeks and 8 weeks it is wave 4, if it is between 8 weeks and 12 weeks it is wave 6
+
+# Example data frame
+gaming_balanced <- gaming_balanced %>%
+  mutate(
+    days_since_start = as.numeric(difftime(sessionStart, studyStartTime, units = "days")),
+    wave = case_when(
+      days_since_start <= 4 * 7 ~ 2,
+      days_since_start <= 8 * 7 ~ 4,
+      days_since_start <= 12 * 7 ~ 6,
+      TRUE ~ NA_real_
+    )
+  ) 
+
+# group gaming by PID, wave and latenight and calculate daily average minutes_played
+gaming_balanced.latenight <- gaming_balanced %>%
+  group_by(PID, wave, latenight) %>%
+  summarise(monthly_avg_minutes_played = sum(minutes_played)/28) %>% filter(!is.na(wave), latenight == 1)
+
+# Create a mapping of the string values to their numeric equivalents
+value_mapping <- c(
+  "No chance of dozing" = 0,
+  "Slight chance of dozing" = 1,
+  "Moderate chance of dozing" = 2,
+  "High chance of dozing" = 3
+)
+# Identify all columns whose names start with 'wemwbs'
+eps_columns <- grep("^eps", names(panel_balanced), value = TRUE)
+# Apply the mapping to these columns
+panel_balanced <- panel_balanced %>% ungroup() %>%
+  mutate(across(all_of(eps_columns), ~ as.numeric(value_mapping[.])))
+
+# calculate a eps_total score for panel_balanced
+panel_balanced <- panel_balanced %>% ungroup() %>%
+  mutate(eps_total = rowSums(select(panel_balanced, eps_columns)))
+
+# select psqi_comp3 from panel_balanced and left_join to gaming_balanced.latenight by PID and wave
+gaming_balanced.latenight <- panel_balanced %>% select(PID, wave, eps_total) %>% filter (wave %in% c(2,4,6)) %>%
+  left_join(gaming_balanced.latenight, by = c("PID", "wave"))
+
+# replace NA with 0 in monthly_avg_minutes_played
+gaming_balanced.latenight <- gaming_balanced.latenight %>% mutate(monthly_avg_minutes_played = replace_na(monthly_avg_minutes_played, 0))
+
+library(lme4)
+# Fit the model
+model.h1d <- lmer(eps_total ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | PID), data = gaming_balanced.latenight )
+
+# Summarize the model using modelsummary
+library(modelsummary)
+modelsummary(list(`Model H1d` = model.h1d),
+             statistic = c("conf.int",
+                           "p = {p.value}"))
+```
+
+
+# H2
+## H2a: The negative association between late-night gaming and sleep quality is more pronounced among evening chronotypes.
+
+## H2b: The negative association between late-night gaming and sleep duration is more pronounced among evening chronotypes.
+
+## H2c: The negative association between late-night gaming and well-being is more pronounced among evening chronotypes.
+
+## H2d: The negative association between late-night gaming and daytime sleepiness is more pronounced among evening chronotypes.
