@@ -14,23 +14,76 @@ bibliography: references.bib
 
 # Preamble
 
-First, load some libraries we'll need.
+
+First, set options and load some libraries we'll need.
+
+```{r}
+#| label: opts
+
+knitr::opts_chunk$set(
+  echo = knitr::is_html_output(),
+  warning = FALSE,
+  message = FALSE,
+  output = TRUE
+)
+
+set.seed(8675309)
+
+```
 
 ```{r}
 #| label: load-libraries
-library(readxl)
-library(tidyverse)
-library(lubridate)
-library(hms)
-library(stringi)
-library(qualtRics) # still need this to import survey nicely with variable labels
+
+library(pacman)
+
+p_load(readxl, tidyverse, lubridate, hms, stringi, qualtRics,
+       jsonlite, progress, sjlabelled, fixtuRes)
 ```
 
-Then, import the true data we need, from which we may later do some bootstrapping.
+```{r}
+#| label: custom-functions
+
+# Function to generate a random time in hh:mm format
+random_time <- function(n) {
+  random_hours <- runif(n, 0, 24)
+  random_minutes <- runif(n, 0, 60)
+  random_times <- now() + dhours(random_hours) + dminutes(random_minutes)
+  format(random_times, "%H:%M")
+}
+
+# Function to randomly assign 1-3 genres to a game
+assignGenres <- function(genres) {
+  numGenres <- sample(1:3, 1, prob = c(.5, .3, .2))
+  genres <- sample(genres, numGenres, replace = FALSE)
+  paste(genres, collapse = ", ")
+}
+
+# function to sample from a zero-inflated gamma distribution, used for iOS app categories 
+sampleTime <- function(n) {
+  ifelse(runif(n) < 0.4, 0, rgamma(n, shape = 3, scale = 2 / 2))
+}
+
+# Sample a single row from df_source based on a matching ID
+sampleRowByID <- function(id, df, nRows) {
+  df |> 
+    filter(ID == !!id) |>   # Filter rows that match the given ID
+    slice_sample(n = nRows, replace = FALSE)             # Randomly sample one row
+}
+
+
+```
+
+
+Then, import the true data we need, from which we'll do some bootstrapping.
+
+::: {.callout-note}
+Some files are available publicly online, but others are private and only on OneDrive. The paths to these are specified in `.Renviron`. 
+:::
 
 ```{r}
-#| label: download-data
+#| label: load-data
 
+# some files are available online 
 if (!file.exists("data/survey.csv.gz")) {
   dir.create("data")
   datSurvey <- read_csv("https://github.com/digital-wellbeing/noa-pilot-ms/raw/main/data/survey.csv.gz")
@@ -52,67 +105,113 @@ if (!file.exists("data/survey.csv.gz")) {
   datMeta <- read_csv("data/gameMetadata.csv.gz")
 }
 
+# other files are only available on onedrive privately (paths specified in .Renviron)
+datXbox <- read.delim(Sys.getenv("xboxDataPath"))
+datSteam <- read_csv(Sys.getenv("steamDataPath")) |> 
+  filter(played == "Yes")
+datAndroid <- fromJSON(Sys.getenv("androidDataPath"))
+
 if (!file.exists("data-synthetic")) {
   dir.create("data-synthetic")
 }
 ```
 
 
-Set up some basic parameters of the data simulation. 
+Set up basic parameters of the data simulation. 
 
 ```{r}
 #| label: sim-parameters
 
 set.seed(8675309)
-N <- 1000
-diaryWaves <- 30
+N <- 2000
+diaryWaves <- 21
 panelWaves <- 6
-studyDays <- 100
 studyStartDate <- as_datetime("2024-05-01 00:00:00")
+studyDays <- panelWaves * 14
+studyDates <- ymd(studyStartDate + days(0:studyDays))
+
 ```
 
 # Simulate participant sample
 
-```{r}
-#| label: sim-sample
+First we simulate the sample as taken - their age, gender, region, and gameplay tendencies. We bootstrap from existing Nintendo pilot data, but add some demographic details that are not present in the Prolific data. This takes the format of the intake questionnaire on Qualtrics, and therefore needs to import that survey. 
 
-synSample <- datDemo |> 
+We also simulate the gameplay behavior of participants - what platforms do they play on, and how frequently do they play on each of them. 
+
+::: {.callout-note}
+Participant platforms don't match the responses in the `platforms_X` intake items, as these are generated from Qualtrics test responses. We have a better idea of the platform distribution so we simulate that ourselves. 
+:::
+
+
+```{r}
+#| label: sim-intake
+
+intake <- fetch_survey(Sys.getenv("QUALTRICS_INTAKE_SURVEY_ID"), include_display_order = FALSE) |> 
+  select(-(StartDate:consent), -(isWilling:RANDOM_ID), -gender_4_TEXT) |> 
+  mutate(playProp_7 = "") # fix one broken column 
   
-  ## need to use two mutates to filter out invalid data from character columns only while bootstrapping
-  mutate(across(where(is.character), 
-                ~sample(.[. != "DATA_EXPIRED"], n(), replace = TRUE))) |> 
-  mutate(across(where(~ !is.character(.)), 
-                ~sample(., n(), replace = TRUE))) |> 
-  slice(1:N) |>
-  mutate(pid = as.character(1:n())) |> 
-  select(
-    pid, 
-    Age = ageProlific, 
-    Sex = sexProlific, 
-    employment = `employmentStatusProlific`
-  ) |> 
+synIntake <- tibble(pid = as.character(1:N),
+                    region = rep(c("US","UK"), N/2)) |> 
+  # bootstrap each column from the non-NA values in the original data
+  cbind(map_dfc(intake, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = N))) |> 
+
+  # for a handful of relevant columns, we override the generate test response distributions with custom ones
   mutate(
-    playsSwitch = sample(c(TRUE, FALSE), n(), prob = c(.4, .7), replace = TRUE),
-    playsXbox = sample(c(TRUE, FALSE), n(), prob = c(.5, .7), replace = TRUE),
-    playsSteam = sample(c(TRUE, FALSE), n(), prob = c(.7, .4), replace = TRUE),
+    age = ifelse(region == "US", 
+                 sample(18:30, N, replace = TRUE),
+                 sample(18:75, N, replace = TRUE)),
+    sex = sample(datDemo$sexProlific[!is.na(datDemo$sexProlific)], n(), replace = TRUE),
+    employment = sample(datDemo$employmentStatusProlific[!is.na(datDemo$employmentStatusProlific) & 
+                                                          datDemo$employmentStatusProlific != "DATA_EXPIRED"],
+                        n(), 
+                        replace = TRUE),
+    eduLevel = sample(datSurvey$eduLevel[!is.na(datSurvey$eduLevel)], n(), replace = TRUE),
+    ethnicity = sample(datDemo$ethnicity[!is.na(datDemo$ethnicity)], n(), replace = TRUE),
+    height = ifelse(sex == "Male",
+                    round(rnorm(n(), 69, 3)),
+                    round(rnorm(n(), 64, 3))),
+    weight = ifelse(sex == "Male",
+                    round(rnorm(n(), 190, 35)),
+                    round(rnorm(n(), 160, 35))),
+    localTimeZone = sample(datDemo$localTimeZone[!is.na(datDemo$localTimeZone)], n(), replace = TRUE)
+  ) |> 
+  
+  # convert height into feet and inches
+  mutate(
+    `height#1_1_1` = height %% 12,
+    `height#1_1_2` = height %/% 12,
+    .keep = "unused" 
+  ) |> 
+
+  # add gaming characteristics
+  mutate(
+    playsSwitch = sample(c(TRUE, FALSE), n(), prob = c(.4, .6), replace = TRUE),
+    playsXbox = sample(c(TRUE, FALSE), n(), prob = c(.5, .5), replace = TRUE),
+    playsSteam = ifelse(region == "US", 
+                        sample(c(TRUE, FALSE), n(), prob = c(.5, .5), replace = TRUE),
+                        FALSE),
     playsSteam = ifelse(!playsSwitch & !playsXbox & !playsSteam, TRUE, playsSteam), # so that all players play on at least one platform
     
+    # for people who play on a given platform, how likely are they to play on a particular day, using beta distribution
     dailyNintendoPlayLikelihood = ifelse(playsSwitch, rbeta(n(), 2, 8), 0),
-    dailyXboxPlayLikelihood = ifelse(playsXbox, rbeta(n(), 4, 5), 0),
-    dailySteamPlayLikelihood = ifelse(playsSteam, rbeta(n(), 4, 3), 0)
+    dailyXboxPlayLikelihood = ifelse(playsXbox, rbeta(n(), 3, 5), 0),
+    dailySteamPlayLikelihood = ifelse(playsSteam, rbeta(n(), 3, 5), 0),
+
+    iOSuser = sample(c(TRUE, FALSE), n(), prob = c(.7, .3), replace = TRUE),
+    androidUser = !iOSuser
   )
 
 ```
 
-Next, we want to simulate some play behavior. We assume that each player has a fixed likelihood of playing a game on each platform on a given day. If they do play, we assume they will play between 1 and 3 sessions. We randomly simulate those values here. 
+Next, we want to simulate some play behavior. We assume that each player has a fixed likelihood of playing on each platform they use on a given day. If they do play, we assume they will play between 1 and 3 sessions (or in the case of Steam, that they have logged playtime in 1-5 1-hour periods of the day). We simulate those values here. 
 
 ```{r}
-#| label: sim-days
+#| label: sim-playhistory
 
-synPlayHistory <- synSample |>
-  mutate(day = list(1:studyDays)) |> 
-  unnest(day) |> 
-  select(pid, day, starts_with(c("plays","daily"))) |> 
+synPlayHistory <- synIntake |>
+  crossing(day = 1:studyDays) |> 
+  mutate(date = studyDates[day]) |> 
+  select(pid, day, date, starts_with(c("plays","daily"))) |> 
   rowwise() |> 
   mutate(
     numSessionsNintendo = ifelse(runif(n()) < dailyNintendoPlayLikelihood,
@@ -121,16 +220,68 @@ synPlayHistory <- synSample |>
     numSessionsXbox = ifelse(runif(n()) < dailyXboxPlayLikelihood,
                              sample(1:3, 1, prob = c(.7, .2, .1)),
                              0),
-    numSessionsSteam = ifelse(runif(n()) < dailySteamPlayLikelihood,
-                              sample(1:3, 1, prob = c(.7, .2, .1)),
+    numHoursWithSteamPlay = ifelse(runif(n()) < dailySteamPlayLikelihood,
+                              sample(1:5, 1, prob = c(.4, .25, .2, .1, .05)),
                               0),
   )
   
 ```
 
+Here, we simulate the properties of participant dropout. We assume that participants have a base rate of missingness at each wave (5% for diary, 10% for panel), and a separate chance each day of dropping out for the rest of the study (1% for the 84 days of the study). We simulate the missingness and dropout for each participant for each day of the study, and use this information later to remove rows from the completed panel and diary surveys.
+
+```{r}
+#| label: sim-dropout
+
+dropout <- expand.grid(pid = 1:N, day = 1:studyDates) |> 
+  
+  # first define the various time components of the study
+  mutate(
+    diaryWave = ifelse(day <= 30, day, NA),
+    week = ceiling(day/7),
+    panelWave = ifelse((day - 1) %% 14 == 0, (day - 1) %/% 14 + 1, NA) # return 1 on day 1, 2 on day 15, 3 on day 29, etc 
+  ) |> 
+  arrange(pid, day) |> 
+  
+  # for simplicity, first we simulate dropout for every day of the study, then only keep the missingness on relevant days
+  mutate(
+    missingDiary = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.05, .5)),
+    missingPanel = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.1, .9)),
+    dropout = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.01, .99))
+  ) |> 
+  mutate(
+    missingPanel = ifelse(is.na(panelWave), NA, missingPanel),
+    missingDiary = ifelse(is.na(diaryWave), NA, missingDiary)
+  ) |> 
+  group_by(pid) |> 
+  mutate(
+    missingPanel = ifelse(cumsum(dropout) > 0, TRUE, missingPanel),
+    missingDiary = ifelse(cumsum(dropout) > 0, TRUE, missingDiary)
+  ) |> 
+  
+  # clean up
+  ungroup() |> 
+  mutate(pid = as_character(pid))
+
+```
+
+
 # Simulate Telemetry
 
-Next, we simulate the session-level data based on the play behavior, starting with Nintendo which we bootstrap from our existing data. For example, Participant 14 played Switch on Day 11, and their play was simulated to include 2 unique sessions. Games, session start times, and session durations are all drawn randomly from the real Nintendo data.
+First we quickly generate a list of unique genres, which we will later randomly assign to games. In the real study, we will match games on all platforms to these same categories using the IGDB database. 
+
+```{r}
+#| label: sim-genres
+
+# We pull from the genres present in the Nintendo metadata (which were in turn pulled from IGDB)
+uniqueGenres <- datMeta |> 
+  filter(!is.na(genres)) |>   # Remove NAs
+  separate_rows(genres, sep = ",") |>   # Split by comma
+  distinct(genres) |>   # Get unique genres
+  pull(genres)
+
+```
+
+Next, we simulate the session-level data based on the play behavior, starting with Nintendo. For each day and session that a participant has played, we bootstrap the title, start time, and duration, from the existing data. For example, Participant 14 played Switch on Day 11, and their play was simulated to include 2 unique sessions. Games, session start times, and session durations are all drawn randomly from the real Nintendo data.
 
 ```{r}
 #| label: sim-nintendo
@@ -141,157 +292,336 @@ synNintendo <- synPlayHistory |>
   unnest(session) |>
   mutate(
     titleID = sample(datNintendo$titleID, n(), replace = TRUE),,
-    sessionStart = as_hms(sample(datNintendo$sessionStart, n(), replace = TRUE)),
-    duration = sample(datNintendo$duration, n(), replace = TRUE)
+    sessionStart = date + seconds(runif(n(), 0, 86400)), # as_hms(sample(datNintendo$sessionStart, n(), replace = TRUE)),
+    duration = sample(datNintendo$duration, n(), replace = TRUE),
+    genre = replicate(n(), assignGenres(uniqueGenres))
   ) |> 
-  select(-(playsSwitch:numSessionsSteam))
+  select(-(playsSwitch:numHoursWithSteamPlay)) |> 
+  mutate(platform = "Nintendo")
 ```
 
-We take a similar approach for the Xbox data, this time sampling from the example data shared by Microsoft. 
+We take a similar approach for the Xbox data. However, instead of bootstrapping, we instead randomly pull from a list of an external list of Xbox games. We pull session start times from the Nintendo dataset as these are probably an equally good representation, but simulate a new set of durations as the average Xbox session is likely longer than Nintendo. 
+
 
 ```{r}
 #| label: sim-xbox
 
-xbox <- read.delim(Sys.getenv("xboxDataPath")) |>
-  group_by(GameId) |> 
-  mutate(
-    GameId = ifelse(nchar(GameId) == 64,
-                    paste0(
-                      "Third Party Game #", n(), " (ID: ", 
-                      paste0(stri_rand_strings(1, 5, "[a-z]"), stri_rand_strings(1, 5, "[0-9]"), stri_rand_strings(1, 5, "[a-z]"), ")")
-                    ),
-                    paste0("Example First Party Title #", n())),
-    # ParticipantId = paste0(stri_rand_strings(1, 5, "[a-z]"), stri_rand_strings(1, 4, "[0-9]"), stri_rand_strings(1, 5, "[a-z]")),
-    PublisherId = paste0(stri_rand_strings(1, 5, "[A-Z]"), stri_rand_strings(1, 4, "[0-9]"), stri_rand_strings(1, 5, "[A-Z]"))
-  ) |> 
-  ungroup() |> 
-  mutate(Device = sample(c("Xbox Series S|X","Xbox One"), n(), prob = c(.1, .9), replace = TRUE),
-         SessionStartTime = 
-           as_datetime(
-             sample(seq(as.POSIXct("2023/01/01 12:00:00"), 
-                        as.POSIXct("2023/02/01 12:00:00"), 
-                        by="5 min"), 
-                    n(), 
-                    replace = TRUE)
-         ),
-         Duration = round(rgamma(n(), shape = 2, rate = 1)*60, 2),
-         SessionEndTime = SessionStartTime + 60*Duration,
-         # Duration = minutes(SessionEndTime - SessionStartTime),
-         TimeOfPull = now()) %>%
-  select(-DateId)
+xboxGames <- read_csv("https://github.com/ItsLogic/Xbox-TitleIDs/raw/main/IDs.csv")[1:300,]
 
 synXbox <- synPlayHistory |> 
   filter(numSessionsXbox > 0) |> 
   mutate(session = list(1:numSessionsXbox)) |> 
   unnest(session) |>
-  mutate(titleID = sample(xbox$GameId, n(), replace = TRUE),
-         sessionStart = as_hms(sample(datNintendo$sessionStart, n(), replace = TRUE)), # nintendo start times are a better reflection of when play happens
-         duration = sample(xbox$Duration, n(), replace = TRUE)) |> 
-  select(-(playsSwitch:numSessionsSteam))
+  mutate(titleID = sample(xboxGames$`Game Title`, n(), replace = TRUE),
+         sessionStart = date + seconds(runif(n(), 0, 86400)),
+         duration = round(rgamma(n(), shape = 2, rate = 1)*60, 2)) |> 
+  select(-(playsSwitch:numHoursWithSteamPlay)) |> 
+  mutate(platform = "Xbox")
 ```
+
+Next, we move to Steam data. Here we use an existing sample of Steam data as output by Gameplay.Science (hosted on OneDrive, path specified in `.Renviron`). 
+
+In contrast to Xbox and Nintendo data, Steam data is not session-level; rather, it is a total amount of time spent playing each game during the previous hour. We simulate this by looking if the person played that day, simulating a random number of hours between 1-5 that they may have played, and then filling in an amount of time for each hour of play. 
+
+We also randomly assign genres to each game, as we did for Nintendo and Xbox.
 
 ```{r}
 #| label: sim-steam
 
-# TODO
-```
+# note that the code structure of the steam sim is a little different, as it derives from a different process (using LLMs to generate user personas)
+steam <- read_csv(Sys.getenv("steamDataPath")) |> 
+  filter(played == "Yes")
 
-
-```{r}
-#| label: sim-mobile
-
-# TODO
-```
-
-
-
-# Simulate self-report data (diary and panel)
-
-We now move to the self-report data. For the panel-level data, we can bootstrap from the existing NoA cross-sectional survey, which will have very similar measures. 
-
-We'll want to add missingness and dropout to both the panel and diary data, which we do by adding a base chance of missingness at every wave, alongside a separate chance at each wave that the participant will drop out for the rest of the study.
-
-```{r}
-#| label: sim-panel-data
-
-# pull panel survey from qualtrics - make sure test responses for the latest published version of the survey
-# have already been generated 
-
-# panel <- fetch_survey(Sys.getenv("QUALTRICS_PANEL_SURVEY_ID"), include_display_order = FALSE) |> 
-#   filter(Finished == TRUE & Status == "IP Address")
-
-# alternatively, load panel survey data from the existing nintendo cross-sectional survey
-# some of these measures are the same, while some are different
-panel <- read_csv("data/survey.csv.gz") |> 
-  select(-(pid:eduLevel)) |> 
+# with more realistic numbers of sessions per player, the loop iteration was getting prohibitively slow
+# so we assign a random persona for each observation in synPlayHistory, then suse sampleRowByID() to only sample rows from steam 
+# where the ID matches.  This is much faster, with the only downside being that different days may have identical sessions, 
+# but I don't see this as a problem for the purposes of the sim (and in fact this might have been happening before anyway?)
+synSteam <- synPlayHistory |> 
+  mutate(persona = sample(unique(steam$ID), n(), replace = TRUE)) |> # assign random persona
+  filter(numHoursWithSteamPlay > 0) |> # for each day where steam play occurs
   mutate(
-    across(starts_with(c("wemwbs","promis","trojan","bangs","displacement")), ~case_when(
-      . %in% c("Greatly interfered") ~ -3,
-      . %in% c("Moderately interfered") ~ -2,
-      . %in% c("Slightly interfered") ~ -1,
-      . %in% c("No impact") ~ 0,
-      . %in% c("1 - None of the time","Never","1 - Strongly disagree","1 \nStrongly Disagree","Slightly supported","1") ~ 1,
-      . %in% c("2 - Rarely","Rarely","Moderately supported","2") ~ 2,
-      . %in% c("3 - Some of the time","Sometimes","Greatly supported","3") ~ 3,
-      . %in% c("4 - Often","Often","4Neither Agree nor Disagree","4") ~ 4,
-      . %in% c("5 - All of the time","Always","5 - Strongly agree","5") ~ 5,
-      . %in% c("6") ~ 6,
-      . %in% c("7 Strongly agree") ~ 7,
-      TRUE ~ NA_integer_))
+    sampled_row = list(sampleRowByID(persona, steam, numHoursWithSteamPlay)) # sample a certain number of hour-sessions
   ) |> 
-  rowwise() |> 
-  mutate(
-    meanNeedSat = mean(c_across(c(bangs_1:bangs_3, bangs_7:bangs_9, bangs_13:bangs_15))),
-    meanNeedFrus = mean(c_across(c(bangs_4:bangs_6, bangs_10:bangs_12, bangs_16:bangs_18))),
-    meanWemwbs = mean(c_across(starts_with("wemwbs"))),
-    meanPromis = mean(c_across(starts_with("promis"))),
-    meanDisplacement = mean(c_across(starts_with("displacement"))),
-    maxDisplacement = max(c_across(starts_with("displacement"))),
-    .keep = "unused"
-    ) |> 
-  ungroup()
-  
-synPanel <- expand.grid(pid = 1:N, wave = 1:panelWaves) |> 
-  
-  # bootstrap each column from the non-NA values in the original data
-  cbind(map_dfc(panel, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = N * panelWaves))) |> 
-  
-  # simulate missingness
-  mutate(missing = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.1, .9)),
-         dropout = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.03, .97))) |> 
-  group_by(pid) |> 
-  mutate(missing = ifelse(cumsum(dropout) > 0, TRUE, missing)) |> 
-  
+  unnest(cols = c(sampled_row)) |> 
+
   # clean up
-  ungroup() |> 
-  select(missing, dropout, everything()) |> 
-  mutate(across(-c(pid, wave, missing, dropout), ~if_else(missing | dropout, NA, .))) |> 
-  arrange(pid, wave)
-  # select(-c(StartDate:eduLevel, PROLIFIC_PID, prolificId, RANDOM_ID, feedback, age:employment_7_TEXT)) |> 
-  
+  select(pid, day, date, hour = time, everything(), -(playsSwitch:numHoursWithSteamPlay), -ID, -played) |> 
+  arrange(as.integer(pid), day, date, hour) |> 
+  mutate(platform = "Steam")
+
+
+## Two flavors of alternative code that create steam data, one without personas and one slower version, committing both for posterity
+# # Get unique PIDs from synIntake
+# steamPIDs <- unique(synIntake$pid[synIntake$playsSteam])
+# numSteamDays <- 10
+# 
+# Initialize an empty tibble to store the results
+# synSteam <- tibble()
+# 
+# # Create a progress bar
+# pb <- progress_bar$new(
+#   format = "  Sampling [:bar] :percent in :elapsed",
+#   total = length(steamPIDs), clear = FALSE, width = 60
+# )
+# # Iterate through each unique PID and sample 10 observations
+# for (pid in steamPIDs) {
+#   # Sample 10 observations from steam_tibble for each ID
+#   tmp <- steam %>%
+#     group_modify(~ sample_n(.x, size = numSteamDays, replace = TRUE)) %>%
+#     mutate(
+#       PID = pid,
+#       day = sample(1:studyDates, size = numSteamDays, replace = FALSE),
+#       
+#       # add days_since_study_start to studyStartDate
+#       date = studyStartDate + days(daysSinceStart - 1)
+#     )
+#   
+#   # Append the sampled data to the result tibble
+#   synSteam <- bind_rows(synSteam, tmp)
+#   
+#   # Update the progress bar
+#   pb$tick()
+# }
+# 
+# # clean up / rename
+# synSteam <- synSteam |> 
+#   select(-ID) |> 
+#   rename(timeHH = time, minutesPlayed = minutes, titleID = Name) |> 
+#   mutate(platform = "Steam") 
+
+# synSteam <- synPlayHistory |> 
+#   filter(numHoursWithSteamPlay > 0) |> 
+#   mutate(hour = list(sample(0:24, numHoursWithSteamPlay))) |> 
+#   unnest(hour) |>
+#   mutate(
+#     titleID = sample(steam$Name, n(), replace = TRUE),
+#     duration = round(rbeta(n(), 3, 5)*60, 1),
+#     genre = replicate(n(), assignGenres(uniqueGenres))
+#   ) |> 
+#   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
+#   arrange(pid, day, hour)
+
 ```
 
-For the diary study data, however, the measures are different and it's less clear how to simulate data. The simplest option is to just use Qualtrics' "generate test response" feature, then pull that data using the Qualtrics API, so that the simulated data accurately mirrors the structure of the data we will later have, (if not the distributional properties).
+iOS data consists of weekly screen time data for the below categories (pre-defined by Apple). We simulate the value of each of these categories for each participant-week using a zero-inflated gamma distribution, then add dropout as before.
 
 ```{r}
-#| label: sim-diary-data
+#| label: sim-ios
 
-# pull diary survey from qualtrics - make sure test responses for the latest published version of the survey
-# have already been generated 
-diary <- fetch_survey(Sys.getenv("QUALTRICS_DIARY_SURVEY_ID"), include_display_order = FALSE)
+appCategories <- c("Entertainment", "Social", "Information & Reading", "Games", "Productivity & Finance", "Travel", "Other",
+                "Creativity", "Education", "Health & Fitness", "Shopping & Food", "Utilities")
 
-synDiary <- expand.grid(pid = 1:N, wave = 1:diaryWaves) |> 
-  cbind(map_dfc(panel, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = N * panelWaves))) |> 
+syniOS <- expand.grid(pid = synIntake$pid[synIntake$iOSuser], 
+                      week = 1:(panelWaves*2),
+                      category = appCategories) |> 
+  mutate(
+    duration = sampleTime(n()),
+    date = studyDates[week*7 - 6]
+  ) |> 
+  pivot_wider(names_from = category, values_from = duration, values_fill = 0) %>%
+  mutate(totalScreentime = rowSums(select(., -c(pid, week, date)))) |> 
   mutate(missing = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.1, .9)),
          dropout = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(.01, .99))) |> 
   group_by(pid) |> 
   mutate(missing = ifelse(cumsum(dropout) > 0, TRUE, missing)) |> 
   ungroup() |> 
   select(missing, dropout, everything()) |> 
-  mutate(across(-c(pid, wave, missing, dropout), ~if_else(missing | dropout, NA, .))) |> 
-  arrange(pid, wave)
+  mutate(across(-c(pid, week, missing, dropout), ~if_else(missing | dropout, NA, .))) |> 
+  arrange(pid, week)
+```
+
+Last, we simulate android data, bootstrapping from a sample ActivityWatch output (hosted on OneDrive, path specified in `.Renviron`).
+
+```{r}
+#| label: sim-android
+
+# Extract and normalize the 'events' data - app sessions - which are found in the 'aw-watcher-android-test' bucket
+androidEvents <- datAndroid$buckets$`aw-watcher-android-test`$events |> 
+  as_tibble() |> 
+  flatten()
+
+synAndroid <- expand.grid(pid = synIntake$pid[synIntake$androidUser], 
+                          day = 1:studyDays) |> 
+  mutate(
+    numDailyAppSessions = round(rgamma(n(), 10, .5)),
+    date = studyDates[day]
+  ) |> # simulate a random number of app sessions to have taken place that day
+  rowwise() |> 
+  mutate(session = list(1:numDailyAppSessions)) |> 
+  unnest(session) |>
+  mutate(
+    app = sample(androidEvents$data.app, n(), replace = TRUE),,
+    sessionStart = as_hms(sample(ymd_hms(androidEvents$timestamp), n(), replace = TRUE)),
+    duration =  sample(androidEvents$duration, n(), replace = TRUE),
+  ) |> 
+
+  # for simplicity at the simulation stage, we simply random assign categories to each app, matching the iOS categories
+  # in the full paper, we will map apps to categories using the google play store API 
+  group_by(app) |> 
+  mutate(category = sample(appCategories, 1, replace = TRUE)) |> 
+  ungroup() |> 
+  arrange(pid, day, sessionStart)
 
 ```
+
+
+
+# Simulate self-report data (diary and panel)
+
+We now move to the self-report data. For both surveys, the simplest option is to just use Qualtrics' "generate test response" feature, then pull that data using the Qualtrics API, so that the simulated data accurately mirrors the structure of the data we will later have (if not the distributional properties).
+
+We'll want to add missingness and dropout to both the panel and diary data, which we do by adding a base chance of missingness at every wave, alongside a separate chance at each wave that the participant will drop out for the rest of the study. See above for details.
+
+```{r}
+#| label: sim-panel-data
+
+# pull panel survey from qualtrics - make sure test responses for the latest published version of the survey
+# have already been generated 
+panel <- fetch_survey(Sys.getenv("QUALTRICS_PANEL_SURVEY_ID"), include_display_order = FALSE) |> 
+  select(-c(StartDate:UserLanguage), -PID, -wave)
+
+panelClean <- panel |> 
+  # test responses for mctq don't work at all so we need to fill these in manually 
+  mutate(
+    mctq_2_1 = sample(0:7, n(), replace = TRUE, prob = c(.05, .05, .10, .10, .20, .25, .15, .10)),
+    across(c(mctq_6_6, mctq_6_4, mctq_3_6, mctq_3_4), ~ runif(n(), min = 1, max = 60)),
+    across(c(mctq_3_1, mctq_3_3, mctq_3_5, mctq_6_1, mctq_6_3, mctq_6_5), ~ random_time(n()))
+  )
+
+synPanel <- expand.grid(pid = as.character(1:N), wave = 1:panelWaves) |>
+  mutate(date = studyDates[wave*14 - 13]) |> 
+  
+  # bootstrap each column from the non-NA values in the original data
+  cbind(map_dfc(panelClean, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = N * panelWaves))) |> 
+
+  # join with the relevant rows/cols of the missingness df
+  left_join(dropout |> filter(!is.na(panelWave)) |> select(pid, panelWave, missingPanel), 
+    by = c("pid", "wave" = "panelWave")
+  ) |>
+  select(pid, wave, date, missingPanel, everything()) |> 
+
+  # remove data for all missing diary waves
+  mutate(across(-c(pid, wave, missingPanel), ~if_else(missingPanel, NA, .))) |> 
+  arrange(as.numeric(pid), wave) |> 
+  copy_labels(panel)
+  
+```
+
+
+```{r}
+#| label: sim-diary-data
+
+# pull diary survey from qualtrics - make sure test responses for the latest published version of the survey
+# have already been generated 
+diary <- fetch_survey(Sys.getenv("QUALTRICS_DIARY_SURVEY_ID"), include_display_order = FALSE) |> 
+  select(-c(StartDate:UserLanguage), -PID, -wave)
+
+synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:diaryWaves) |>
+  mutate(date = studyDates[day]) |> 
+  # bootstrap each column from the non-NA values in the original data
+  cbind(map_dfc(diary, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), 
+                            length.out = length(synIntake$pid[synIntake$region == "US"]) * diaryWaves))) |> 
+
+  # join with missingness df
+  left_join(dropout |> filter(!is.na(diaryWave)) |> select(pid, diaryWave, missingDiary), 
+    by = c("pid", "day" = "diaryWave")
+  ) |> 
+
+  # remove data for all missing diary waves, and removing gaming data when the participant didn't play in the last 24 hours
+  mutate(
+    across(-c(pid, day, date, missingDiary), ~if_else(missingDiary, NA, .)), 
+    across(starts_with(c("socialGaming","bangs","mostRecentGame","displaced")), ~ ifelse(played24hr == "No", NA, .)) # remove gaming data 
+  ) |> 
+  # clean up
+  select(pid, day, date, missingDiary, everything()) |> 
+  arrange(pid, day) |> 
+  copy_labels(diary)
+
+```
+
+# Generate Codebook
+
+Generate codebook.xlsx. Note that the cognitive task codebooks are in <https://github.com/digital-wellbeing/standard-stingray>.
+
+```{r}
+#| label: generate-codebook
+#| eval: false
+
+# TODO: finish codebook
+
+metaInfo <- tribble(
+  ~Tab, ~Content, ~Notes,
+  "Nintendo", "Telemetry data", "",
+  "Survey", "Wellbeing data", "Qualtrics survey data",
+  "OSF", "Cognitive task data", "",
+  "Demographics", "Demographic data from Prolific", "Some variables are similar to survey items; those in the demographics table are provided by Prolific, those in the survey are self-report and therefore are missing for participants who did not complete the survey"
+)
+
+panelCodebook <- synPanel |>
+  get_label() |>
+  enframe() |> 
+  separate(value, into = c("stem", "item"), sep = " - ", extra = "drop", fill = "right", remove = FALSE) |> 
+  mutate(
+    Item = if_else(is.na(item), value, item),
+    `Stem text` = if_else(grepl(" - ", value), stem, NA),
+    .keep = "unused"
+  )
+
+diaryCodebook <- synDiary |>
+  get_label() |>
+  enframe() |> 
+  separate(value, into = c("stem", "item"), sep = " - ", extra = "drop", fill = "right", remove = FALSE) |> 
+  mutate(
+    Item = if_else(is.na(item), value, item),
+    `Stem text` = if_else(grepl(" - ", value), stem, NA),
+    .keep = "unused"
+  ) |> 
+  mutate(
+    Source = case_when(
+      grepl("wemwbs", name) ~ "Warwick-Edinburgh Mental Wellbeing Scale (https://doi.org/10.1186/1477-7525-5-63)",
+      grepl("promis", name) ~ "PROMIS Short Form 8a Adult Depression Scale (https://doi.org/10.1177/1073191111411667)",
+      grepl("bangs", name) ~ "Basic Needs in Games Scale (https://doi.org/10.31234/osf.io/4965z7)",
+      grepl("trojan", name) ~ "Trojan Player Typologye (https://doi.org/10.1016/j.chb.2015.03.018)",
+    ),
+    `Response Options` = case_when(
+      grepl("wemwbs", name) ~ "1 - None of the time; 2 - Rarely; 3 - Some of the time; 4 - Often; 5 - All of the time",
+      grepl("promis", name) ~ "Never; Rarely; Sometimes; Often; Never",
+      grepl("bangs", name) ~ "1 Strongly Disagree; 2; 3; 4 Neither Agree nor Disagree; 5; 6; 7 Strongly Agree",
+      grepl("trojan", name) ~ "1 - Strongly disagree; 2; 3; 4; 5 - Strongly agree",
+      name %in% c("problematicPlay", "positives", "feedback") ~ "free text response",
+      grepl("displacement", name) ~ "Greatly interfered; Moderately interfered; Slightly interfered; No impact; Slightly supported; Moderately supported; Greatly supported",
+      grepl("timeUse", name) ~ "slider from 0-16 hours, with increments of .1",
+      TRUE ~ ""
+    ),
+    `Stem text` = gsub("[\r\n]", "", `Stem text`)
+  ) |> 
+  rename(Variable = name)
+
+# Generate and format codebook
+write.xlsx(
+  list(
+    "Meta-info" = metaInfo, 
+    "NoA" = noaCodebook, 
+    "Qualtrics" = qualtricsCodebook, 
+    "Demographics" = demoCodebook
+  ),
+  file = "codebook.xlsx",
+  headerStyle = createStyle(textDecoration = "bold", halign = "center"),
+  overwrite = TRUE,
+  colWidths = "auto"
+)
+codebook <- loadWorkbook("codebook.xlsx")
+addStyle(codebook, "Meta-info", rows = nrow(metaInfo) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
+setColWidths(codebook, "Qualtrics", cols = 1:3, widths = c(25, 100, 40))
+addStyle(codebook, "Qualtrics", rows = nrow(qualtricsCodebook) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
+writeData(codebook, "Meta-info", startRow = nrow(metaInfo) + 3, startCol = 1, x = "Tabs of this file contain the respective codebooks for each data table.")
+mergeCells(codebook, "Meta-info", cols = 1:3, rows = nrow(metaInfo) + 3)
+setRowHeights(codebook, "Meta-info", rows = nrow(metaInfo) + 3, heights = 50)
+
+saveWorkbook(codebook, paste0(Sys.getenv("DATA_PATH"), "/data-clean/codebook.xlsx"), overwrite = TRUE)
+
+```
+
 
 # Save data
 
@@ -300,11 +630,13 @@ Save the data to `data-synthetic`, for use in devising analysis scripts for e.g.
 ```{r}
 #| label: save-data
 
-write_csv(synSample, "data-synthetic/synSample.csv")
+write_csv(synIntake, "data-synthetic/synIntake.csv")
 write_csv(synDiary, "data-synthetic/synDiary.csv")
 write_csv(synPanel, "data-synthetic/synPanel.csv")
 write_csv(synXbox, "data-synthetic/synXbox.csv")
 write_csv(synNintendo, "data-synthetic/synNintendo.csv")
-# write_csv(synSteam, "data-synthetic/synSteam.csv")
-```
+write_csv(synAndroid, "data-synthetic/synAndroid")
+write_csv(synSteam, "data-synthetic/synSteam.csv")
+write_csv(syniOS, "data-synthetic/syniOS.csv")
 
+```
