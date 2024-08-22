@@ -30,7 +30,7 @@ bibliography: references.bib
 
 if (!require("pacman")) install.packages("pacman");
 library(pacman)
-pacman::p_load(tidyverse, dplyr, ggplot2, forcats, tesseract, magick, colorfindr, janitor, tictoc)
+p_load(tidyverse, dplyr, ggplot2, forcats, tesseract, magick, colorfindr, janitor, tictoc)
 
 knitr::opts_chunk$set(
   echo = knitr::is_html_output(),
