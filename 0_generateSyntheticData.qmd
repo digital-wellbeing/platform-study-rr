@@ -37,7 +37,7 @@ set.seed(8675309)
 library(pacman)
 
 p_load(readxl, tidyverse, lubridate, hms, stringi, qualtRics,
-       jsonlite, progress, sjlabelled, fixtuRes)
+       jsonlite, progress, sjlabelled, openxlsx)
 ```
 
 ```{r}
@@ -199,7 +199,8 @@ synIntake <- tibble(pid = as.character(1:N),
 
     iOSuser = sample(c(TRUE, FALSE), n(), prob = c(.7, .3), replace = TRUE),
     androidUser = !iOSuser
-  )
+  ) |> 
+  copy_labels(intake)
 
 ```
 
@@ -298,6 +299,7 @@ synNintendo <- synPlayHistory |>
   ) |> 
   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
   mutate(platform = "Nintendo")
+
 ```
 
 We take a similar approach for the Xbox data. However, instead of bootstrapping, we instead randomly pull from a list of an external list of Xbox games. We pull session start times from the Nintendo dataset as these are probably an equally good representation, but simulate a new set of durations as the average Xbox session is likely longer than Nintendo. 
@@ -317,6 +319,7 @@ synXbox <- synPlayHistory |>
          duration = round(rgamma(n(), shape = 2, rate = 1)*60, 2)) |> 
   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
   mutate(platform = "Xbox")
+
 ```
 
 Next, we move to Steam data. Here we use an existing sample of Steam data as output by Gameplay.Science (hosted on OneDrive, path specified in `.Renviron`). 
@@ -340,7 +343,7 @@ synSteam <- synPlayHistory |>
   mutate(persona = sample(unique(steam$ID), n(), replace = TRUE)) |> # assign random persona
   filter(numHoursWithSteamPlay > 0) |> # for each day where steam play occurs
   mutate(
-    sampled_row = list(sampleRowByID(persona, steam, numHoursWithSteamPlay)) # sample a certain number of hour-sessions
+    sampled_row = list(sampleRowByID(persona, steam, numHoursWithSteamPlay)) # sample a certain number of hour-sessions from that persona
   ) |> 
   unnest(cols = c(sampled_row)) |> 
 
@@ -348,58 +351,6 @@ synSteam <- synPlayHistory |>
   select(pid, day, date, hour = time, everything(), -(playsSwitch:numHoursWithSteamPlay), -ID, -played) |> 
   arrange(as.integer(pid), day, date, hour) |> 
   mutate(platform = "Steam")
-
-
-## Two flavors of alternative code that create steam data, one without personas and one slower version, committing both for posterity
-# # Get unique PIDs from synIntake
-# steamPIDs <- unique(synIntake$pid[synIntake$playsSteam])
-# numSteamDays <- 10
-# 
-# Initialize an empty tibble to store the results
-# synSteam <- tibble()
-# 
-# # Create a progress bar
-# pb <- progress_bar$new(
-#   format = "  Sampling [:bar] :percent in :elapsed",
-#   total = length(steamPIDs), clear = FALSE, width = 60
-# )
-# # Iterate through each unique PID and sample 10 observations
-# for (pid in steamPIDs) {
-#   # Sample 10 observations from steam_tibble for each ID
-#   tmp <- steam %>%
-#     group_modify(~ sample_n(.x, size = numSteamDays, replace = TRUE)) %>%
-#     mutate(
-#       PID = pid,
-#       day = sample(1:studyDates, size = numSteamDays, replace = FALSE),
-#       
-#       # add days_since_study_start to studyStartDate
-#       date = studyStartDate + days(daysSinceStart - 1)
-#     )
-#   
-#   # Append the sampled data to the result tibble
-#   synSteam <- bind_rows(synSteam, tmp)
-#   
-#   # Update the progress bar
-#   pb$tick()
-# }
-# 
-# # clean up / rename
-# synSteam <- synSteam |> 
-#   select(-ID) |> 
-#   rename(timeHH = time, minutesPlayed = minutes, titleID = Name) |> 
-#   mutate(platform = "Steam") 
-
-# synSteam <- synPlayHistory |> 
-#   filter(numHoursWithSteamPlay > 0) |> 
-#   mutate(hour = list(sample(0:24, numHoursWithSteamPlay))) |> 
-#   unnest(hour) |>
-#   mutate(
-#     titleID = sample(steam$Name, n(), replace = TRUE),
-#     duration = round(rbeta(n(), 3, 5)*60, 1),
-#     genre = replicate(n(), assignGenres(uniqueGenres))
-#   ) |> 
-#   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
-#   arrange(pid, day, hour)
 
 ```
 
@@ -425,9 +376,10 @@ syniOS <- expand.grid(pid = synIntake$pid[synIntake$iOSuser],
   group_by(pid) |> 
   mutate(missing = ifelse(cumsum(dropout) > 0, TRUE, missing)) |> 
   ungroup() |> 
-  select(missing, dropout, everything()) |> 
+  select(pid, week, date, missing, dropout, everything()) |> 
   mutate(across(-c(pid, week, missing, dropout), ~if_else(missing | dropout, NA, .))) |> 
   arrange(pid, week)
+  
 ```
 
 Last, we simulate android data, bootstrapping from a sample ActivityWatch output (hosted on OneDrive, path specified in `.Renviron`).
@@ -494,6 +446,11 @@ synPanel <- expand.grid(pid = as.character(1:N), wave = 1:panelWaves) |>
   # bootstrap each column from the non-NA values in the original data
   cbind(map_dfc(panelClean, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = N * panelWaves))) |> 
 
+  # certain measures are only administered at certain waves, set these to 0 for the other waves
+  mutate(across(starts_with(c("BFI","trojan","mctq")), ~ifelse(wave != 1, NA, .))) |>
+  mutate(across(starts_with("gdt"), ~ifelse(wave %in% c(2:5), NA, .))) |>
+  mutate(across(starts_with(c("psqi","eps")), ~ifelse(wave %in% c(1, 3, 5), NA, .))) |>
+
   # join with the relevant rows/cols of the missingness df
   left_join(dropout |> filter(!is.na(panelWave)) |> select(pid, panelWave, missingPanel), 
     by = c("pid", "wave" = "panelWave")
@@ -541,33 +498,34 @@ synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:d
 
 # Generate Codebook
 
-Generate codebook.xlsx. Note that the cognitive task codebooks are in <https://github.com/digital-wellbeing/standard-stingray>.
+Generate codebook.xlsx. <https://github.com/digital-wellbeing/standard-stingray>.
 
 ```{r}
 #| label: generate-codebook
-#| eval: false
-
-# TODO: finish codebook
 
 metaInfo <- tribble(
-  ~Tab, ~Content, ~Notes,
-  "Nintendo", "Telemetry data", "",
-  "Survey", "Wellbeing data", "Qualtrics survey data",
-  "OSF", "Cognitive task data", "",
-  "Demographics", "Demographic data from Prolific", "Some variables are similar to survey items; those in the demographics table are provided by Prolific, those in the survey are self-report and therefore are missing for participants who did not complete the survey"
+  ~Tab, ~Content,
+  "Intake", "Data on participant demographics and gaming habits",
+  "Panel", "Wellbeing, sleep and time use data from the panel survey",
+  "Diary", "Daily diary data on gaming, wellbeing, and sleep",
+  "Nintendo", "Telemetry data (session-level) from the Nintendo Switch",
+  "Xbox", "Telemetry data (session-level) from Xbox devices",
+  "Steam", "Telemetry data (total playtime in 1 hour blocks) from Steam",
+  "iOS", "Screen time data from iOS devices, pulled from screenshots of the Screen time app",
+  "Android", "App usage data from Android devices, pulled from ActivityWatch"
 )
 
-panelCodebook <- synPanel |>
+intakeCodebook <- synIntake |>
   get_label() |>
   enframe() |> 
-  separate(value, into = c("stem", "item"), sep = " - ", extra = "drop", fill = "right", remove = FALSE) |> 
+  separate(value, into = c("stem", "item"), sep = " - ", extra = "merge", fill = "right", remove = FALSE) |> 
   mutate(
     Item = if_else(is.na(item), value, item),
     `Stem text` = if_else(grepl(" - ", value), stem, NA),
     .keep = "unused"
   )
 
-diaryCodebook <- synDiary |>
+panelCodebook <- synPanel |>
   get_label() |>
   enframe() |> 
   separate(value, into = c("stem", "item"), sep = " - ", extra = "drop", fill = "right", remove = FALSE) |> 
@@ -581,44 +539,188 @@ diaryCodebook <- synDiary |>
       grepl("wemwbs", name) ~ "Warwick-Edinburgh Mental Wellbeing Scale (https://doi.org/10.1186/1477-7525-5-63)",
       grepl("promis", name) ~ "PROMIS Short Form 8a Adult Depression Scale (https://doi.org/10.1177/1073191111411667)",
       grepl("bangs", name) ~ "Basic Needs in Games Scale (https://doi.org/10.31234/osf.io/4965z7)",
-      grepl("trojan", name) ~ "Trojan Player Typologye (https://doi.org/10.1016/j.chb.2015.03.018)",
+      grepl("trojan", name) ~ "Trojan Player Typology (https://doi.org/10.1016/j.chb.2015.03.018)",
+      grepl("gdt", name) ~ "Gaming Disorder Test (https://doi.org/10.1007/s11469-019-00088-z)",
+      grepl("mctq", name) ~ "Munich Chronotype Questionnaire (https://doi.org/10.1177/0748730402239679)",
+      grepl("pqsi", name) ~ "Pittsburgh Sleep Quality Index (https://doi.org/10.1016/0165-1781(89)90047-4)",
+      grepl("eps", name) ~ "Epwoth Sleepiness Scale (https://doi.org/10.1093/sleep/14.6.540)", 
+      grepl("BFI", name) ~ "Extra-short Big Five Inventory–2 (https://doi.org/10.1016/j.jrp.2017.02.004)",
+      grepl("lifeSat", name) ~ "Cantril Self-anchoring Scale (Cantril, 1965)",
+      TRUE ~ ""
     ),
     `Response Options` = case_when(
       grepl("wemwbs", name) ~ "1 - None of the time; 2 - Rarely; 3 - Some of the time; 4 - Often; 5 - All of the time",
       grepl("promis", name) ~ "Never; Rarely; Sometimes; Often; Never",
       grepl("bangs", name) ~ "1 Strongly Disagree; 2; 3; 4 Neither Agree nor Disagree; 5; 6; 7 Strongly Agree",
       grepl("trojan", name) ~ "1 - Strongly disagree; 2; 3; 4; 5 - Strongly agree",
-      name %in% c("problematicPlay", "positives", "feedback") ~ "free text response",
-      grepl("displacement", name) ~ "Greatly interfered; Moderately interfered; Slightly interfered; No impact; Slightly supported; Moderately supported; Greatly supported",
+      name %in% c("problematicPlay", "positives") ~ "free text response",
+      grepl("displacement", name) ~ "Greatly interfered; Moderately interfered; Slightly interfered; No impact; Slightly supported;
+Moderately supported; Greatly supported",
       grepl("timeUse", name) ~ "slider from 0-16 hours, with increments of .1",
+      grepl("eps", name) ~ "No chance of dozing; Slight chance of dozing; Moderate chance of dozing; High chance of dozing",
+      grepl("BFI", name) ~ "Disagree strongly; Disagree a little; Neutral, no opinion; Agree a little; Agree strongly",
+      grepl("lifeSat", name) ~ "1-100 sliding scale",
       TRUE ~ ""
     ),
     `Stem text` = gsub("[\r\n]", "", `Stem text`)
   ) |> 
   rename(Variable = name)
 
+diaryCodebook <- synDiary |>
+  get_label() |>
+  enframe() |> 
+  separate(value, into = c("stem", "item"), sep = " - ", extra = "drop", fill = "right", remove = FALSE) |> 
+  mutate(
+    Item = if_else(is.na(item), value, item),
+    `Stem text` = if_else(grepl(" - ", value), stem, NA),
+    .keep = "unused"
+  ) |> 
+  mutate(
+    Source = case_when(
+      grepl("bangs", name) ~ "Basic Needs in Games Scale (https://doi.org/10.31234/osf.io/4965z7)",
+      grepl("bpnsfs", name) ~ "Basic Psychological Need Satisfaction and Frustration Scale (https://doi.org/10.1007/s11031-014-9450-1)",
+      grepl("stress|howStress", name) ~ "Daily Inventory of Stressful Events (https://doi.org/10.1177/1073191102091006)",
+      grepl("sd_", name) ~ "Consensus Sleep Diary (https://doi.org/10.5665/sleep.1642)",
+      TRUE ~ ""
+    ),
+    `Response Options` = case_when(
+      grepl("bangs", name) ~ paste(names(table(synDiary$bangs_1)), collapse = "; "),
+      grepl("bpnsfs", name) ~ paste(names(table(synDiary$bpnsfs_1)), collapse = "; "),
+      grepl("timeUse", name) ~ "slider from 0-16 hours, with increments of .1",
+      grepl("^stress", name) ~ "Yes; No",
+      grepl("howStress", name) ~ "Not at all; Not very; Somewhat; Very", 
+      name == "sd_0" ~ "Regular work day; Regular day off; Weekend; Holiday; Vacation day Other (please specify):", 
+      TRUE ~ ""
+    ),
+    `Stem text` = gsub("[\r\n]", "", `Stem text`)
+  ) |> 
+  rename(Variable = name)
+
+nintendoCodebook <- synNintendo |> 
+  get_label() |> 
+  enframe() |> 
+  set_labels(
+    labels = c(
+      pid = "A unique identifier assigned to each participant in the study.",
+      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+      date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
+      session = "A sequential identifier for each gaming session on a given day for the participant.",
+      titleID = "The name of the game played during the session.",
+      sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
+      duration = "The length of the gaming session in minutes.",
+      genre = "The genre(s) of the game played (e.g., Action, Puzzle, Role-Playing), using IGDB categories.",
+      platform = "The platform on which the game was played, for use in future merging (here: always Nintendo)."
+    )
+  )
+
+xboxCodebook <- synXbox |> 
+  get_label() |> 
+  enframe() |> 
+  set_labels(
+    labels = c(
+      pid = "A unique identifier assigned to each participant in the study.",
+      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+      date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
+      session = "A sequential identifier for each gaming session on a given day for the participant.",
+      titleID = "The name of the game played during the session.",
+      sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
+      duration = "The length of the gaming session in minutes.",
+      platform = "The platform on which the game was played, for use in future merging (here: always Xbox)."
+    )
+  )
+
+steamCodebook <- synSteam |>
+  set_labels(
+    labels = c(
+      pid = "A unique identifier assigned to each participant in the study.",
+      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+      date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
+      hour = "The hour of the day when the gaming session began (0-23).",
+      persona = "One of 250 possible Steam personas, generated by LLMs, with particular gameplay habits",
+      genre = "The category or genre of the game played during the session (e.g., Action, Puzzle, Role-Playing).",
+      minutes = "The number of minutes played of that game during the hour period in question.",
+      AppID = "A unique identifier assigned to each game on the Steam platform.",
+      Name = "The name of the game played during the session.",
+      platform = "The platform on which the game was played, for use in future merging (here: always Steam)."
+    )
+  ) |> 
+  get_label() |> 
+  enframe()
+
+iOSCodebook <- syniOS |> 
+  get_label() |> 
+  enframe() |> 
+  set_labels(
+    labels = c(
+      missing = "Indicator for whether the data for the week is missing (TRUE = missing).",
+      dropout = "Indicator for whether the participant dropped out of the study (TRUE = dropped out).",
+      pid = "A unique identifier assigned to each participant in the study.",
+      week = "The week number relative to the start of the study.",
+      date = "The date corresponding to the start of the week in question (format: YYYY-MM-DD).",
+      Entertainment = "Total amount of time spent in entertainment apps during the week (in minutes).",
+      Social = "Total amount of time spent in social media apps during the week (in minutes).",
+      `Information & Reading` = "Total amount of time spent in information and reading apps during the week (in minutes).",
+      Games = "Total amount of time spent in gaming apps during the week (in minutes).",
+      `Productivity & Finance` = "Total amount of time spent in productivity and finance apps during the week (in minutes).",
+      Travel = "Total amount of time spent in travel-related apps during the week (in minutes).",
+      Other = "Total amount of time spent in other uncategorized apps during the week (in minutes).",
+      Creativity = "Total amount of time spent in creativity apps (e.g., photo/video editing) during the week (in minutes).",
+      Education = "Total amount of time spent in educational apps during the week (in minutes).",
+      `Health & Fitness` = "Total amount of time spent in health and fitness apps during the week (in minutes).",
+      `Shopping & Food` = "Total amount of time spent in shopping and food-related apps during the week (in minutes).",
+      Utilities = "Total amount of time spent in utility apps (e.g., weather, calculators) during the week (in minutes).",
+      totalScreentime = "Total amount of screen time across all app categories during the week (in minutes)."
+    )
+  )
+
+androidCodebook <- synAndroid |> 
+  get_label() |> 
+  enframe() |> 
+  set_labels(
+    labels = c(
+      pid = "A unique identifier assigned to each participant in the study.",
+      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+      numDailyAppSessions = "The total number of app sessions recorded on the given day.",
+      date = "The calendar date on which the app sessions occurred (format: YYYY-MM-DD).",
+      session = "A sequential identifier for each app session on the given day for the participant.",
+      app = "The name of the app used during the session.",
+      sessionStart = "The time of day when the app session began (format: HH:MM:SS).",
+      duration = "The duration of the app session in minutes.",
+      category = "The category of the app used during the session (e.g., Social, Productivity, Entertainment)."
+    )
+  )
+
 # Generate and format codebook
 write.xlsx(
   list(
     "Meta-info" = metaInfo, 
-    "NoA" = noaCodebook, 
-    "Qualtrics" = qualtricsCodebook, 
-    "Demographics" = demoCodebook
+    "Intake" = intakeCodebook,
+    "Panel" = panelCodebook,
+    "Diary" = diaryCodebook,
+    "Nintendo" = nintendoCodebook,
+    "Xbox" = xboxCodebook,
+    "Steam" = steamCodebook,
+    "iOS" = iOSCodebook,
+    "Android" = androidCodebook
   ),
   file = "codebook.xlsx",
   headerStyle = createStyle(textDecoration = "bold", halign = "center"),
   overwrite = TRUE,
   colWidths = "auto"
 )
+
 codebook <- loadWorkbook("codebook.xlsx")
 addStyle(codebook, "Meta-info", rows = nrow(metaInfo) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
-setColWidths(codebook, "Qualtrics", cols = 1:3, widths = c(25, 100, 40))
-addStyle(codebook, "Qualtrics", rows = nrow(qualtricsCodebook) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
+setColWidths(codebook, "Intake", cols = 1:3, widths = c(25, 100, 40))
+setColWidths(codebook, "Panel", cols = 1:3, widths = c(25, 100, 40))
+setColWidths(codebook, "Diary", cols = 1:3, widths = c(25, 100, 40))
+addStyle(codebook, "Intake", rows = nrow(intakeCodebook) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
+addStyle(codebook, "Panel", rows = nrow(panelCodebook) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
+addStyle(codebook, "Diary", rows = nrow(diaryCodebook) + 3, cols = 1:3, style = createStyle(wrapText = TRUE))
 writeData(codebook, "Meta-info", startRow = nrow(metaInfo) + 3, startCol = 1, x = "Tabs of this file contain the respective codebooks for each data table.")
 mergeCells(codebook, "Meta-info", cols = 1:3, rows = nrow(metaInfo) + 3)
 setRowHeights(codebook, "Meta-info", rows = nrow(metaInfo) + 3, heights = 50)
-
-saveWorkbook(codebook, paste0(Sys.getenv("DATA_PATH"), "/data-clean/codebook.xlsx"), overwrite = TRUE)
+saveWorkbook(codebook, "codebook.xlsx", overwrite = TRUE)
 
 ```
 
