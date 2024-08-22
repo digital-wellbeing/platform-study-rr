@@ -50,6 +50,12 @@ dat <- diary |>
 Hm. Something weird is happening here - there's a small but consistent negative relationship between gameNS_cw and globalNS, even though these variables have nothing to do with each other. I suspect this is a data issue, but I'm not sure what's going on.
 :::
 
+Experiences of gaming feed into and co-constitute experiences of life as a whole---experiences with games are one (greater or lesser) element of lives in general. Thus, H6 in BANG predicts: *Greater in-game need satisfaction is associated with greater global need satisfaction*.
+
+We model this with a multilevel within-between linear regression whereby game-level need satisfaction (within- and between-centered; `gameNS_cw` and `gameNS_cb`) predicts deviation from a person's typical globalNS (`globalNS`, with a random intercept).  
+
+This model, in contrast to the others, has some covariates in it, mostly as a reminder to myself to figure out whether these warrant including or not. 
+
 ```{r}
 #| label: h1-model
 
@@ -62,6 +68,13 @@ plot_predictions(h1mod, condition = "gameNS_cw")
 
 ## H2b. Situational need satisfaction is positively associated with higher likelihood of playing in the period after survey completion (H8 in BANG)
 
+Experiences of need satisfaction during a particular gaming session lead players to update expectations for future experiences with the current game, similar games, and gaming as a whole, such that greater need satisfaction leads to higher expectations for future need satisfaction. Under BANG, need-related outcome expectations are conceptually similar to intrinsic motivation, and the behavioral product of these expectations is therefore greater behavioral engagement. 
+
+Thus, the model attempts to evaluate whether experiencing high game-level need satisfaction in one's most recent session is linked with a higher likelihood of playing games again in the 24-hour period after the survey. 
+
+We model this with a multilevel within-between logistic regression, where in-game need satisfaction (within- and between-person centered; `gameNS_cw` and `gameNS_cb`) predicts `playedAfterSurvey`, a binary variable indicating whether any play happened in the 24-hour period after diary survey completion.
+
+
 ```{r}
 #| label: h2a-model
 
@@ -71,22 +84,25 @@ h2amod <- glmer(playedLaterAny ~ gameNS_cw + gameNS_cb + (1 + gameNS_cw|pid),
                data = dat,
                family = binomial(link = "logit"))
 
-plot_predictions(h2amod, condition = "globalNF_cw")
+plot_predictions(h2amod, condition = "gameNS_cw")
 
 ```
 
 
-
 ## H2b. Global need frustration is associated with higher likelihood of playing in the period after survey completion (H9 in BANG)
 
-Here, I look at the relationship between global need frustration and the likelihood of playing after the survey. 
+Another factor that might increase the likelihood that someone (re)turns to gaming is global need frustration. SDT predicts that (global) need frustration results in compensatory behavior—people attempt to replenish needs that are not being met by altering their behavior. The dense need satisfaction offered by games constitute one way for people to compensate. BANG operationalizes this compensatory play in via intrinsic motivation. Frustrated needs in one’s life in general make opportunities to fulfill those needs more salient, which—all else equal—manifests phenomenologically as an increased energy towards those activities. Given this, we predict: *Global need frustration is associated with higher likelihood of playing in the 24-hour period after survey completion (H9 in BANG)*
+
+We model this with a multilevel within-between logistic regression, where in-game need satisfaction (within- and between-person centered; `globalNF_cw` and `globalNF_cb`) predicts `playedAfterSurvey`, a binary variable indicating whether any play happened in the 24-hour period after diary survey completion.
 
 ```{r}
 #| label: h2b-model
 
-h2bmod <- glmer(playedAfterSurvey ~ globalNF + (1 + globalNF|id), 
+h2bmod <- glmer(playedLaterAny ~ globalNF_cw + globalNF_cb + (1 + globalNF_cw|pid), 
                data = dat,
                family = binomial(link = "logit"))
+
+plot_predictions(h2bmod, condition = "globalNF_cw")
 
 ```
 
@@ -97,10 +113,12 @@ We don't have temporal precedence here (the need satisfaction measure refers to 
 
 Briefly, I'm just interested in whether gaming sessions that displace a core life domain---work/school, social engagements, sleep/eating/fitness, or caretaking---are associated with lower global need satisfaction. `displacedCoreActivity` is a binary variable; participants write in a free text response what they most likely would have done instead of their most recent gaming session, and these are classified into core/noncore domains. 
 
+We use a multilevel linear regression to determine whether displacing a core activity is likely to co-occur with a person differing from their typical level of global need satisfaction (`globalNS`). 
+
 ```{r}
 #| label: h3-model
 
 table(dat$displacedCoreDomain)
-h3mod <- lmer(globalNS ~ displacedCoreDomain + (1 + displacedCoreDomain|id), data = dat)
+h3mod <- lmer(globalNS ~ displacedCoreDomain + (1 + displacedCoreDomain|pid), data = dat)
 
 ```
