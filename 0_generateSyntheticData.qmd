@@ -19,6 +19,7 @@ First, set options and load some libraries we'll need.
 
 ```{r}
 #| label: opts
+#| code-fold-label: "Show options code"
 
 knitr::opts_chunk$set(
   echo = knitr::is_html_output(),
@@ -33,6 +34,7 @@ set.seed(8675309)
 
 ```{r}
 #| label: load-libraries
+#| code-fold-label: "Show library code"
 
 library(pacman)
 
@@ -145,6 +147,8 @@ Participant platforms don't match the responses in the `platforms_X` intake item
 
 ```{r}
 #| label: sim-intake
+#| output: false
+#| code-fold-label: "Show Intake Code"
 
 intake <- fetch_survey(Sys.getenv("QUALTRICS_INTAKE_SURVEY_ID"), include_display_order = FALSE) |> 
   select(-(StartDate:consent), -(isWilling:RANDOM_ID), -gender_4_TEXT) |> 
@@ -300,6 +304,8 @@ synNintendo <- synPlayHistory |>
   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
   mutate(platform = "Nintendo")
 
+glimpse(synNintendo)
+
 ```
 
 We take a similar approach for the Xbox data. However, instead of bootstrapping, we instead randomly pull from a list of an external list of Xbox games. We pull session start times from the Nintendo dataset as these are probably an equally good representation, but simulate a new set of durations as the average Xbox session is likely longer than Nintendo. 
@@ -319,6 +325,8 @@ synXbox <- synPlayHistory |>
          duration = round(rgamma(n(), shape = 2, rate = 1)*60, 2)) |> 
   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
   mutate(platform = "Xbox")
+
+glimpse(synXbox)
 
 ```
 
@@ -352,6 +360,8 @@ synSteam <- synPlayHistory |>
   arrange(as.integer(pid), day, date, hour) |> 
   mutate(platform = "Steam")
 
+glimpse(synXbox)
+
 ```
 
 iOS data consists of weekly screen time data for the below categories (pre-defined by Apple). We simulate the value of each of these categories for each participant-week using a zero-inflated gamma distribution, then add dropout as before.
@@ -380,6 +390,8 @@ syniOS <- expand.grid(pid = synIntake$pid[synIntake$iOSuser],
   mutate(across(-c(pid, week, missing, dropout), ~if_else(missing | dropout, NA, .))) |> 
   arrange(pid, week)
   
+glimpse(syniOS)
+
 ```
 
 Last, we simulate android data, bootstrapping from a sample ActivityWatch output (hosted on OneDrive, path specified in `.Renviron`).
@@ -414,6 +426,8 @@ synAndroid <- expand.grid(pid = synIntake$pid[synIntake$androidUser],
   ungroup() |> 
   arrange(pid, day, sessionStart)
 
+glimpse(synAndroid)
+
 ```
 
 
@@ -426,6 +440,7 @@ We'll want to add missingness and dropout to both the panel and diary data, whic
 
 ```{r}
 #| label: sim-panel-data
+#| output: false
 
 # pull panel survey from qualtrics - make sure test responses for the latest published version of the survey
 # have already been generated 
@@ -461,12 +476,17 @@ synPanel <- expand.grid(pid = as.character(1:N), wave = 1:panelWaves) |>
   mutate(across(-c(pid, wave, missingPanel), ~if_else(missingPanel, NA, .))) |> 
   arrange(as.numeric(pid), wave) |> 
   copy_labels(panel)
-  
+```
+
+```{r}
+#| label: glimpse-panel
+glimpse(synPanel)
 ```
 
 
 ```{r}
 #| label: sim-diary-data
+#| output: false
 
 # pull diary survey from qualtrics - make sure test responses for the latest published version of the survey
 # have already been generated 
@@ -496,9 +516,15 @@ synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:d
 
 ```
 
+```{r}
+#| label: glimpse-diary
+glimpse(synPanel)
+```
+
+
 # Generate Codebook
 
-Generate codebook.xlsx. <https://github.com/digital-wellbeing/standard-stingray>.
+Generate codebook.xlsx.
 
 ```{r}
 #| label: generate-codebook
@@ -597,98 +623,88 @@ diaryCodebook <- synDiary |>
   rename(Variable = name)
 
 nintendoCodebook <- synNintendo |> 
-  get_label() |> 
-  enframe() |> 
-  set_labels(
-    labels = c(
-      pid = "A unique identifier assigned to each participant in the study.",
-      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
-      date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
-      session = "A sequential identifier for each gaming session on a given day for the participant.",
-      titleID = "The name of the game played during the session.",
-      sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
-      duration = "The length of the gaming session in minutes.",
-      genre = "The genre(s) of the game played (e.g., Action, Puzzle, Role-Playing), using IGDB categories.",
-      platform = "The platform on which the game was played, for use in future merging (here: always Nintendo)."
-    )
-  )
-
-xboxCodebook <- synXbox |> 
-  get_label() |> 
-  enframe() |> 
-  set_labels(
-    labels = c(
-      pid = "A unique identifier assigned to each participant in the study.",
-      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
-      date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
-      session = "A sequential identifier for each gaming session on a given day for the participant.",
-      titleID = "The name of the game played during the session.",
-      sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
-      duration = "The length of the gaming session in minutes.",
-      platform = "The platform on which the game was played, for use in future merging (here: always Xbox)."
-    )
-  )
-
-steamCodebook <- synSteam |>
-  set_labels(
-    labels = c(
-      pid = "A unique identifier assigned to each participant in the study.",
-      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
-      date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
-      hour = "The hour of the day when the gaming session began (0-23).",
-      persona = "One of 250 possible Steam personas, generated by LLMs, with particular gameplay habits",
-      genre = "The category or genre of the game played during the session (e.g., Action, Puzzle, Role-Playing).",
-      minutes = "The number of minutes played of that game during the hour period in question.",
-      AppID = "A unique identifier assigned to each game on the Steam platform.",
-      Name = "The name of the game played during the session.",
-      platform = "The platform on which the game was played, for use in future merging (here: always Steam)."
-    )
+  var_labels(
+    pid = "A unique identifier assigned to each participant in the study.",
+    day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+    date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
+    session = "A sequential identifier for each gaming session on a given day for the participant.",
+    titleID = "The name of the game played during the session.",
+    sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
+    duration = "The length of the gaming session in minutes.",
+    genre = "The genre(s) of the game played (e.g., Action, Puzzle, Role-Playing), using IGDB categories.",
+    platform = "The platform on which the game was played, for use in future merging (here: always Nintendo)."
   ) |> 
   get_label() |> 
-  enframe()
+  enframe(name = "Variable", value = "Description")
+
+xboxCodebook <- synXbox |> 
+  var_labels(
+    pid = "A unique identifier assigned to each participant in the study.",
+    day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+    date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
+    session = "A sequential identifier for each gaming session on a given day for the participant.",
+    titleID = "The name of the game played during the session.",
+    sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
+    duration = "The length of the gaming session in minutes.",
+    platform = "The platform on which the game was played, for use in future merging (here: always Xbox)."
+  ) |> 
+  get_label() |> 
+  enframe(name = "Variable", value = "Description")
+
+steamCodebook <- synSteam |>
+  var_labels(
+    pid = "A unique identifier assigned to each participant in the study.",
+    day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+    date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
+    hour = "The hour of the day when the gaming session began (0-23).",
+    persona = "One of 250 possible Steam personas, generated by LLMs, with particular gameplay habits",
+    genre = "The category or genre of the game played during the session (e.g., Action, Puzzle, Role-Playing).",
+    minutes = "The number of minutes played of that game during the hour period in question.",
+    AppID = "A unique identifier assigned to each game on the Steam platform.",
+    Name = "The name of the game played during the session.",
+    platform = "The platform on which the game was played, for use in future merging (here: always Steam)."
+  ) |> 
+  get_label() |> 
+  enframe(name = "Variable", value = "Description")
 
 iOSCodebook <- syniOS |> 
+  var_labels(
+    missing = "Indicator for whether the data for the week is missing (TRUE = missing).",
+    dropout = "Indicator for whether the participant dropped out of the study (TRUE = dropped out).",
+    pid = "A unique identifier assigned to each participant in the study.",
+    week = "The week number relative to the start of the study.",
+    date = "The date corresponding to the start of the week in question (format: YYYY-MM-DD).",
+    Entertainment = "Total amount of time spent in entertainment apps during the week (in minutes).",
+    Social = "Total amount of time spent in social media apps during the week (in minutes).",
+    `Information & Reading` = "Total amount of time spent in information and reading apps during the week (in minutes).",
+    Games = "Total amount of time spent in gaming apps during the week (in minutes).",
+    `Productivity & Finance` = "Total amount of time spent in productivity and finance apps during the week (in minutes).",
+    Travel = "Total amount of time spent in travel-related apps during the week (in minutes).",
+    Other = "Total amount of time spent in other uncategorized apps during the week (in minutes).",
+    Creativity = "Total amount of time spent in creativity apps (e.g., photo/video editing) during the week (in minutes).",
+    Education = "Total amount of time spent in educational apps during the week (in minutes).",
+    `Health & Fitness` = "Total amount of time spent in health and fitness apps during the week (in minutes).",
+    `Shopping & Food` = "Total amount of time spent in shopping and food-related apps during the week (in minutes).",
+    Utilities = "Total amount of time spent in utility apps (e.g., weather, calculators) during the week (in minutes).",
+    totalScreentime = "Total amount of screen time across all app categories during the week (in minutes)."
+  ) |> 
   get_label() |> 
-  enframe() |> 
-  set_labels(
-    labels = c(
-      missing = "Indicator for whether the data for the week is missing (TRUE = missing).",
-      dropout = "Indicator for whether the participant dropped out of the study (TRUE = dropped out).",
-      pid = "A unique identifier assigned to each participant in the study.",
-      week = "The week number relative to the start of the study.",
-      date = "The date corresponding to the start of the week in question (format: YYYY-MM-DD).",
-      Entertainment = "Total amount of time spent in entertainment apps during the week (in minutes).",
-      Social = "Total amount of time spent in social media apps during the week (in minutes).",
-      `Information & Reading` = "Total amount of time spent in information and reading apps during the week (in minutes).",
-      Games = "Total amount of time spent in gaming apps during the week (in minutes).",
-      `Productivity & Finance` = "Total amount of time spent in productivity and finance apps during the week (in minutes).",
-      Travel = "Total amount of time spent in travel-related apps during the week (in minutes).",
-      Other = "Total amount of time spent in other uncategorized apps during the week (in minutes).",
-      Creativity = "Total amount of time spent in creativity apps (e.g., photo/video editing) during the week (in minutes).",
-      Education = "Total amount of time spent in educational apps during the week (in minutes).",
-      `Health & Fitness` = "Total amount of time spent in health and fitness apps during the week (in minutes).",
-      `Shopping & Food` = "Total amount of time spent in shopping and food-related apps during the week (in minutes).",
-      Utilities = "Total amount of time spent in utility apps (e.g., weather, calculators) during the week (in minutes).",
-      totalScreentime = "Total amount of screen time across all app categories during the week (in minutes)."
-    )
-  )
+  enframe(name = "Variable", value = "Description")
 
 androidCodebook <- synAndroid |> 
+  var_labels(
+    pid = "A unique identifier assigned to each participant in the study.",
+    day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
+    numDailyAppSessions = "The total number of app sessions recorded on the given day.",
+    date = "The calendar date on which the app sessions occurred (format: YYYY-MM-DD).",
+    session = "A sequential identifier for each app session on the given day for the participant.",
+    app = "The name of the app used during the session.",
+    sessionStart = "The time of day when the app session began (format: HH:MM:SS).",
+    duration = "The duration of the app session in minutes.",
+    category = "The category of the app used during the session (e.g., Social, Productivity, Entertainment)."
+  ) |> 
   get_label() |> 
-  enframe() |> 
-  set_labels(
-    labels = c(
-      pid = "A unique identifier assigned to each participant in the study.",
-      day = "The day number relative to the start of the study (e.g., Day 1, Day 2).",
-      numDailyAppSessions = "The total number of app sessions recorded on the given day.",
-      date = "The calendar date on which the app sessions occurred (format: YYYY-MM-DD).",
-      session = "A sequential identifier for each app session on the given day for the participant.",
-      app = "The name of the app used during the session.",
-      sessionStart = "The time of day when the app session began (format: HH:MM:SS).",
-      duration = "The duration of the app session in minutes.",
-      category = "The category of the app used during the session (e.g., Social, Productivity, Entertainment)."
-    )
-  )
+  enframe(name = "Variable", value = "Description")
 
 # Generate and format codebook
 write.xlsx(
