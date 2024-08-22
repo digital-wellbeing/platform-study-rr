@@ -331,7 +331,8 @@ synXbox <- synPlayHistory |>
   unnest(session) |>
   mutate(titleID = sample(xboxGames$`Game Title`, n(), replace = TRUE),
          sessionStart = date + seconds(runif(n(), 0, 86400)),
-         duration = round(rgamma(n(), shape = 2, rate = 1)*60, 2)) |> 
+         duration = round(rgamma(n(), shape = 2, rate = 1)*60, 2),
+         genre = replicate(n(), assignGenres(uniqueGenres))) |> 
   select(-(playsSwitch:numHoursWithSteamPlay)) |> 
   mutate(platform = "Xbox")
 
