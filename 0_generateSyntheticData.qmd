@@ -684,6 +684,7 @@ xboxCodebook <- synXbox |>
     titleID = "The name of the game played during the session.",
     sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
     duration = "The length of the gaming session in minutes.",
+    genre = "The genre(s) of the game played (e.g., Action, Puzzle, Role-Playing), using IGDB categories.",
     platform = "The platform on which the game was played, for use in future merging (here: always Xbox)."
   ) |> 
   get_label() |> 
