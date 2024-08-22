@@ -19,7 +19,6 @@ First, set options and load some libraries we'll need.
 
 ```{r}
 #| label: opts
-#| code-fold-label: "Show options code"
 
 knitr::opts_chunk$set(
   echo = knitr::is_html_output(),
@@ -34,8 +33,8 @@ set.seed(8675309)
 
 ```{r}
 #| label: load-libraries
-#| code-fold-label: "Show library code"
 
+if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
 p_load(readxl, tidyverse, lubridate, hms, stringi, qualtRics,
@@ -144,11 +143,11 @@ We also simulate the gameplay behavior of participants - what platforms do they 
 Participant platforms don't match the responses in the `platforms_X` intake items, as these are generated from Qualtrics test responses. We have a better idea of the platform distribution so we simulate that ourselves. 
 :::
 
+## Intake
 
 ```{r}
 #| label: sim-intake
 #| output: false
-#| code-fold-label: "Show Intake Code"
 
 intake <- fetch_survey(Sys.getenv("QUALTRICS_INTAKE_SURVEY_ID"), include_display_order = FALSE) |> 
   select(-(StartDate:consent), -(isWilling:RANDOM_ID), -gender_4_TEXT) |> 
@@ -208,6 +207,8 @@ synIntake <- tibble(pid = as.character(1:N),
 
 ```
 
+## Play History
+
 Next, we want to simulate some play behavior. We assume that each player has a fixed likelihood of playing on each platform they use on a given day. If they do play, we assume they will play between 1 and 3 sessions (or in the case of Steam, that they have logged playtime in 1-5 1-hour periods of the day). We simulate those values here. 
 
 ```{r}
@@ -232,12 +233,14 @@ synPlayHistory <- synIntake |>
   
 ```
 
+## Dropout/attrition
+
 Here, we simulate the properties of participant dropout. We assume that participants have a base rate of missingness at each wave (5% for diary, 10% for panel), and a separate chance each day of dropping out for the rest of the study (1% for the 84 days of the study). We simulate the missingness and dropout for each participant for each day of the study, and use this information later to remove rows from the completed panel and diary surveys.
 
 ```{r}
 #| label: sim-dropout
 
-dropout <- expand.grid(pid = 1:N, day = 1:studyDates) |> 
+dropout <- expand.grid(pid = 1:N, day = 1:studyDays) |> 
   
   # first define the various time components of the study
   mutate(
@@ -245,7 +248,7 @@ dropout <- expand.grid(pid = 1:N, day = 1:studyDates) |>
     week = ceiling(day/7),
     panelWave = ifelse((day - 1) %% 14 == 0, (day - 1) %/% 14 + 1, NA) # return 1 on day 1, 2 on day 15, 3 on day 29, etc 
   ) |> 
-  arrange(pid, day) |> 
+  arrange(as.integer(pid), day) |> 
   
   # for simplicity, first we simulate dropout for every day of the study, then only keep the missingness on relevant days
   mutate(
@@ -274,6 +277,8 @@ dropout <- expand.grid(pid = 1:N, day = 1:studyDates) |>
 
 First we quickly generate a list of unique genres, which we will later randomly assign to games. In the real study, we will match games on all platforms to these same categories using the IGDB database. 
 
+## Genres
+
 ```{r}
 #| label: sim-genres
 
@@ -285,6 +290,8 @@ uniqueGenres <- datMeta |>
   pull(genres)
 
 ```
+
+## Nintendo
 
 Next, we simulate the session-level data based on the play behavior, starting with Nintendo. For each day and session that a participant has played, we bootstrap the title, start time, and duration, from the existing data. For example, Participant 14 played Switch on Day 11, and their play was simulated to include 2 unique sessions. Games, session start times, and session durations are all drawn randomly from the real Nintendo data.
 
@@ -308,6 +315,8 @@ glimpse(synNintendo)
 
 ```
 
+## Xbox
+
 We take a similar approach for the Xbox data. However, instead of bootstrapping, we instead randomly pull from a list of an external list of Xbox games. We pull session start times from the Nintendo dataset as these are probably an equally good representation, but simulate a new set of durations as the average Xbox session is likely longer than Nintendo. 
 
 
@@ -329,6 +338,8 @@ synXbox <- synPlayHistory |>
 glimpse(synXbox)
 
 ```
+
+## Steam
 
 Next, we move to Steam data. Here we use an existing sample of Steam data as output by Gameplay.Science (hosted on OneDrive, path specified in `.Renviron`). 
 
@@ -360,9 +371,11 @@ synSteam <- synPlayHistory |>
   arrange(as.integer(pid), day, date, hour) |> 
   mutate(platform = "Steam")
 
-glimpse(synXbox)
+glimpse(synSteam)
 
 ```
+
+## iOS
 
 iOS data consists of weekly screen time data for the below categories (pre-defined by Apple). We simulate the value of each of these categories for each participant-week using a zero-inflated gamma distribution, then add dropout as before.
 
@@ -388,11 +401,13 @@ syniOS <- expand.grid(pid = synIntake$pid[synIntake$iOSuser],
   ungroup() |> 
   select(pid, week, date, missing, dropout, everything()) |> 
   mutate(across(-c(pid, week, missing, dropout), ~if_else(missing | dropout, NA, .))) |> 
-  arrange(pid, week)
+  arrange(as.integer(pid), week)
   
 glimpse(syniOS)
 
 ```
+
+## Android 
 
 Last, we simulate android data, bootstrapping from a sample ActivityWatch output (hosted on OneDrive, path specified in `.Renviron`).
 
@@ -424,12 +439,11 @@ synAndroid <- expand.grid(pid = synIntake$pid[synIntake$androidUser],
   group_by(app) |> 
   mutate(category = sample(appCategories, 1, replace = TRUE)) |> 
   ungroup() |> 
-  arrange(pid, day, sessionStart)
+  arrange(as.integer(pid), day, sessionStart)
 
 glimpse(synAndroid)
 
 ```
-
 
 
 # Simulate self-report data (diary and panel)
@@ -437,6 +451,8 @@ glimpse(synAndroid)
 We now move to the self-report data. For both surveys, the simplest option is to just use Qualtrics' "generate test response" feature, then pull that data using the Qualtrics API, so that the simulated data accurately mirrors the structure of the data we will later have (if not the distributional properties).
 
 We'll want to add missingness and dropout to both the panel and diary data, which we do by adding a base chance of missingness at every wave, alongside a separate chance at each wave that the participant will drop out for the rest of the study. See above for details.
+
+## Panel
 
 ```{r}
 #| label: sim-panel-data
@@ -456,7 +472,10 @@ panelClean <- panel |>
   )
 
 synPanel <- expand.grid(pid = as.character(1:N), wave = 1:panelWaves) |>
-  mutate(date = studyDates[wave*14 - 13]) |> 
+  mutate(
+    date = studyDates[wave*14 - 13],
+    surveyCompletionTime = date + seconds(runif(n(), 43200, 129600)) # add random completion time between 12pm and 12pm the following day
+  ) |> 
   
   # bootstrap each column from the non-NA values in the original data
   cbind(map_dfc(panelClean, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = N * panelWaves))) |> 
@@ -478,11 +497,19 @@ synPanel <- expand.grid(pid = as.character(1:N), wave = 1:panelWaves) |>
   copy_labels(panel)
 ```
 
+<details>
+  <summary>Click to view the structure of the panel data</summary>
+
 ```{r}
 #| label: glimpse-panel
+#| code-fold: false
+
 glimpse(synPanel)
 ```
 
+</details>
+
+## Diary
 
 ```{r}
 #| label: sim-diary-data
@@ -494,7 +521,10 @@ diary <- fetch_survey(Sys.getenv("QUALTRICS_DIARY_SURVEY_ID"), include_display_o
   select(-c(StartDate:UserLanguage), -PID, -wave)
 
 synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:diaryWaves) |>
-  mutate(date = studyDates[day]) |> 
+  mutate(
+    date = studyDates[day],
+    surveyCompletionTime = date + seconds(runif(n(), 64800, 93600)) # add time so that the survey is randomly completed between 6pm and 2am
+  ) |> 
   # bootstrap each column from the non-NA values in the original data
   cbind(map_dfc(diary, ~rep(sample(.[!is.na(.)], length(.), replace = TRUE), 
                             length.out = length(synIntake$pid[synIntake$region == "US"]) * diaryWaves))) |> 
@@ -511,16 +541,23 @@ synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:d
   ) |> 
   # clean up
   select(pid, day, date, missingDiary, everything()) |> 
-  arrange(pid, day) |> 
+  arrange(as.integer(pid), day) |> 
   copy_labels(diary)
 
 ```
 
+<details>
+  <summary>Click to view the structure of the diary data</summary>
+
+
 ```{r}
 #| label: glimpse-diary
-glimpse(synPanel)
+#| code-fold: false
+
+glimpse(synDiary)
 ```
 
+</details>
 
 # Generate Codebook
 
