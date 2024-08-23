@@ -12,8 +12,13 @@ format:
 bibliography: references.bib
 ---
 
-# Preamble
+::: {.callout-note}
+This file is intended for internal use---compilation requires access to the original data files and the Qualtrics API.
 
+For external users, most relevant will be the synthetic data files and codebook that this file generates. We've nonetheless included this simulation code in case readers want to understand how the synthetic data was created. 
+:::
+
+# Preamble
 
 First, set options and load some libraries we'll need.
 
@@ -287,7 +292,8 @@ uniqueGenres <- datMeta |>
   filter(!is.na(genres)) |>   # Remove NAs
   separate_rows(genres, sep = ",") |>   # Split by comma
   distinct(genres) |>   # Get unique genres
-  pull(genres)
+  pull(genres) |> 
+  sort()
 
 ```
 
@@ -562,21 +568,21 @@ glimpse(synDiary)
 
 # Generate Codebook
 
-Generate codebook.xlsx.
+Generate `codebook.xlsx`. 
 
 ```{r}
 #| label: generate-codebook
 
 metaInfo <- tribble(
-  ~Tab, ~Content,
-  "Intake", "Data on participant demographics and gaming habits",
-  "Panel", "Wellbeing, sleep and time use data from the panel survey",
-  "Diary", "Daily diary data on gaming, wellbeing, and sleep",
-  "Nintendo", "Telemetry data (session-level) from the Nintendo Switch",
-  "Xbox", "Telemetry data (session-level) from Xbox devices",
-  "Steam", "Telemetry data (total playtime in 1 hour blocks) from Steam",
-  "iOS", "Screen time data from iOS devices, pulled from screenshots of the Screen time app",
-  "Android", "App usage data from Android devices, pulled from ActivityWatch"
+  ~Tab, ~`Data File`, ~Content,
+  "Intake", "data-synthetic/synIntake.csv", "Data on participant demographics and gaming habits",
+  "Panel", "data-synthetic/synPanel.csv", "Wellbeing, sleep and time use data from the panel survey",
+  "Diary", "data-synthetic/synDiary.csv", "Daily diary data on gaming, wellbeing, and sleep",
+  "Nintendo", "data-synthetic/synNintendo.csv", "Telemetry data (session-level) from the Nintendo Switch",
+  "Xbox", "data-synthetic/synXbox.csv", "Telemetry data (session-level) from Xbox devices",
+  "Steam", "data-synthetic/synSteam.csv", "Telemetry data (total playtime in 1 hour blocks) from Steam",
+  "iOS", "data-synthetic/syniOS.csv", "Screen time data from iOS devices, pulled from screenshots of the Screen time app",
+  "Android", "data-synthetic/synAndroid.csv", "App usage data from Android devices, pulled from ActivityWatch"
 )
 
 intakeCodebook <- synIntake |>
@@ -642,9 +648,10 @@ diaryCodebook <- synDiary |>
   mutate(
     Source = case_when(
       grepl("bangs", name) ~ "Basic Needs in Games Scale (https://doi.org/10.31234/osf.io/4965z7)",
-      grepl("bpnsfs", name) ~ "Basic Psychological Need Satisfaction and Frustration Scale (https://doi.org/10.1007/s11031-014-9450-1)",
+      grepl("bpnsfs", name) ~ "Basic Psychological Need Satisfaction and Frustration Scale (https://doi.org/10.1007/s11031-014-9450-1), brief version (https://doi.org/1015-5759/a000846)",
       grepl("stress|howStress", name) ~ "Daily Inventory of Stressful Events (https://doi.org/10.1177/1073191102091006)",
       grepl("sd_", name) ~ "Consensus Sleep Diary (https://doi.org/10.5665/sleep.1642)",
+      grepl("lifeSat", name) ~ "Cantril Self-anchoring Scale (Cantril, 1965)",
       TRUE ~ ""
     ),
     `Response Options` = case_when(
@@ -654,6 +661,7 @@ diaryCodebook <- synDiary |>
       grepl("^stress", name) ~ "Yes; No",
       grepl("howStress", name) ~ "Not at all; Not very; Somewhat; Very", 
       name == "sd_0" ~ "Regular work day; Regular day off; Weekend; Holiday; Vacation day Other (please specify):", 
+      grepl("lifeSat", name) ~ "1-100 sliding scale",
       TRUE ~ ""
     ),
     `Stem text` = gsub("[\r\n]", "", `Stem text`)
@@ -673,7 +681,11 @@ nintendoCodebook <- synNintendo |>
     platform = "The platform on which the game was played, for use in future merging (here: always Nintendo)."
   ) |> 
   get_label() |> 
-  enframe(name = "Variable", value = "Description")
+  enframe(name = "Variable", value = "Description") |> 
+  mutate(Notes = case_when(
+    Variable == "genre" ~ paste0("Possible genres are: ", paste(uniqueGenres, collapse = ", ")), 
+    TRUE ~ "" 
+  ))
 
 xboxCodebook <- synXbox |> 
   var_labels(
@@ -684,11 +696,15 @@ xboxCodebook <- synXbox |>
     titleID = "The name of the game played during the session.",
     sessionStart = "The time of day when the gaming session began (format: HH:MM:SS).",
     duration = "The length of the gaming session in minutes.",
-    genre = "The genre(s) of the game played (e.g., Action, Puzzle, Role-Playing), using IGDB categories.",
+    genre = "The genre(s) of the game played using IGDB categories.",
     platform = "The platform on which the game was played, for use in future merging (here: always Xbox)."
   ) |> 
   get_label() |> 
-  enframe(name = "Variable", value = "Description")
+  enframe(name = "Variable", value = "Description") |> 
+  mutate(Notes = case_when(
+    Variable == "genre" ~ paste0("Possible genres are: ", paste(uniqueGenres, collapse = ", ")), 
+    TRUE ~ "" 
+  ))
 
 steamCodebook <- synSteam |>
   var_labels(
@@ -697,14 +713,18 @@ steamCodebook <- synSteam |>
     date = "The calendar date on which the gaming session occurred (format: YYYY-MM-DD).",
     hour = "The hour of the day when the gaming session began (0-23).",
     persona = "One of 250 possible Steam personas, generated by LLMs, with particular gameplay habits",
-    genre = "The category or genre of the game played during the session (e.g., Action, Puzzle, Role-Playing).",
+    genre = "The genre(s) of the game played using IGDB categories.",
     minutes = "The number of minutes played of that game during the hour period in question.",
     AppID = "A unique identifier assigned to each game on the Steam platform.",
     Name = "The name of the game played during the session.",
     platform = "The platform on which the game was played, for use in future merging (here: always Steam)."
   ) |> 
   get_label() |> 
-  enframe(name = "Variable", value = "Description")
+  enframe(name = "Variable", value = "Description") |> 
+  mutate(Notes = case_when(
+    Variable == "genre" ~ paste0("Possible genres are: ", paste(uniqueGenres, collapse = ", ")), 
+    TRUE ~ "" 
+  ))
 
 iOSCodebook <- syniOS |> 
   var_labels(
