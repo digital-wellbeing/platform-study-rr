@@ -1,15 +1,5 @@
 ---
 output: html_document
-editor_options: 
-  chunk_output_type: console
-execute: 
-  warning: false
-page-layout: full
-format:
-  html:
-    code-fold: true
-    code-summary: "Show the code"
-bibliography: references.bib
 ---
 
 ::: {.callout-note}
@@ -42,8 +32,7 @@ if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
 p_load(
-  readxl, tidyverse, lubridate, hms, stringi, qualtRics,
-  jsonlite, progress, sjlabelled, openxlsx
+  tidyverse, jsonlite, qualtRics, sjlabelled, hms, openxlsx
 )
 ```
 
@@ -82,11 +71,12 @@ sampleRowByID <- function(id, df, nRows) {
 Then, import the true data we need, from which we'll do some bootstrapping.
 
 ::: {.callout-note}
-Some files are available publicly online, but others are private and only on OneDrive. The paths to these are specified in `.Renviron`. 
+Some files are available publicly online; others are private and only on OneDrive (paths specified in `.Renviron`); and other are pulled using the Qualtrics API (internal use only).
 :::
 
 ```{r}
 #| label: load-data
+#| output: false
 
 # some files are available online
 if (!file.exists("data/survey.csv.gz")) {
@@ -114,6 +104,33 @@ datXbox <- read.delim(Sys.getenv("xboxDataPath"))
 datSteam <- read_csv(Sys.getenv("steamDataPath")) |>
   filter(played == "Yes")
 datAndroid <- fromJSON(Sys.getenv("androidDataPath"))
+
+# and three are available through the Qualtrics API (internal use only)
+
+datIntake <- fetch_survey(Sys.getenv("QUALTRICS_INTAKE_SURVEY_ID"), include_display_order = FALSE) |>
+  select(-(StartDate:consent), -(isWilling:RANDOM_ID), -gender_4_TEXT) |>
+  mutate(playProp_7 = "") # fix one broken column
+
+# pull panel survey from qualtrics - make sure test responses for the latest
+# published version of the survey have already been generated
+# two steps because we need to mutate without losing labels 
+datPanelRaw <- fetch_survey(Sys.getenv("QUALTRICS_PANEL_SURVEY_ID"), include_display_order = FALSE)
+
+datPanel <- datPanelRaw |>
+  select(-c(StartDate:UserLanguage), -PID, -wave) |> 
+  # test responses for mctq don't work at all so we need to fill these in manually
+  mutate(
+    mctq_2_1 = sample(0:7, n(), replace = TRUE, prob = c(.05, .05, .10, .10, .20, .25, .15, .10)),
+    across(c(mctq_6_6, mctq_6_4, mctq_3_6, mctq_3_4), ~ runif(n(), min = 1, max = 60)),
+    across(c(mctq_3_1, mctq_3_3, mctq_3_5, mctq_6_1, mctq_6_3, mctq_6_5), ~ randomTime(n()))
+  ) |> 
+# Reapply the original labels to ensure they are retained
+  copy_labels(datPanelRaw)
+
+# pull diary survey from qualtrics - make sure test responses for the latest
+# published version of the survey have already been generated
+datDiary <- fetch_survey(Sys.getenv("QUALTRICS_DIARY_SURVEY_ID"), include_display_order = FALSE) |>
+  select(-c(StartDate:UserLanguage), -PID, -wave)
 
 if (!file.exists("data-synthetic")) {
   dir.create("data-synthetic")
@@ -151,16 +168,12 @@ Participant platforms don't match the responses in the `platforms_X` intake item
 #| label: sim-intake
 #| output: false
 
-intake <- fetch_survey(Sys.getenv("QUALTRICS_INTAKE_SURVEY_ID"), include_display_order = FALSE) |>
-  select(-(StartDate:consent), -(isWilling:RANDOM_ID), -gender_4_TEXT) |>
-  mutate(playProp_7 = "") # fix one broken column
-
 synIntake <- tibble(
   pid = as.character(1:n),
   region = rep(c("US", "UK"), n / 2)
 ) |>
   # bootstrap each column from the non-NA values in the original data
-  cbind(map_dfc(intake, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = n))) |>
+  cbind(map_dfc(datIntake, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = n))) |>
   # for a handful of relevant columns, we override the generate test response
   # distributions with custom ones
   mutate(
@@ -213,7 +226,7 @@ synIntake <- tibble(
     iOSuser = sample(c(TRUE, FALSE), n(), prob = c(.7, .3), replace = TRUE),
     androidUser = !iOSuser
   ) |>
-  copy_labels(intake)
+  copy_labels(datIntake)
 ```
 
 ## Play History
@@ -467,20 +480,6 @@ We'll want to add missingness and dropout to both the panel and diary data, whic
 
 ```{r}
 #| label: sim-panel-data
-#| output: false
-
-# pull panel survey from qualtrics - make sure test responses for the latest published version of the survey
-# have already been generated
-panel <- fetch_survey(Sys.getenv("QUALTRICS_PANEL_SURVEY_ID"), include_display_order = FALSE) |>
-  select(-c(StartDate:UserLanguage), -PID, -wave)
-
-panelClean <- panel |>
-  # test responses for mctq don't work at all so we need to fill these in manually
-  mutate(
-    mctq_2_1 = sample(0:7, n(), replace = TRUE, prob = c(.05, .05, .10, .10, .20, .25, .15, .10)),
-    across(c(mctq_6_6, mctq_6_4, mctq_3_6, mctq_3_4), ~ runif(n(), min = 1, max = 60)),
-    across(c(mctq_3_1, mctq_3_3, mctq_3_5, mctq_6_1, mctq_6_3, mctq_6_5), ~ randomTime(n()))
-  )
 
 synPanel <- expand.grid(pid = as.character(1:n), wave = 1:panelWaves) |>
   # add random completion time between 12pm and 12pm the following day
@@ -489,7 +488,7 @@ synPanel <- expand.grid(pid = as.character(1:n), wave = 1:panelWaves) |>
     surveyCompletionTime = date + seconds(runif(n(), 43200, 129600))
   ) |>
   # bootstrap each column from the non-NA values in the original data
-  cbind(map_dfc(panelClean, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = n * panelWaves))) |>
+  cbind(map_dfc(datPanel, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = n * panelWaves))) |>
   # certain measures are only administered at certain waves, set these to 0 for
   # the other waves
   mutate(across(starts_with(c("BFI", "trojan", "mctq")), ~ ifelse(wave != 1, NA, .))) |>
@@ -503,7 +502,7 @@ synPanel <- expand.grid(pid = as.character(1:n), wave = 1:panelWaves) |>
   # remove data for all missing diary waves
   mutate(across(-c(pid, wave, missingPanel), ~ if_else(missingPanel, NA, .))) |>
   arrange(as.numeric(pid), wave) |>
-  copy_labels(panel)
+  copy_labels(datPanel)
 ```
 
 <details>
@@ -522,12 +521,6 @@ glimpse(synPanel)
 
 ```{r}
 #| label: sim-diary-data
-#| output: false
-
-# pull diary survey from qualtrics - make sure test responses for the latest
-# published version of the survey have already been generated
-diary <- fetch_survey(Sys.getenv("QUALTRICS_DIARY_SURVEY_ID"), include_display_order = FALSE) |>
-  select(-c(StartDate:UserLanguage), -PID, -wave)
 
 synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:diaryWaves) |>
   mutate(
@@ -535,7 +528,7 @@ synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:d
     surveyCompletionTime = date + seconds(runif(n(), 64800, 93600)) # add time so that the survey is randomly completed between 6pm and 2am
   ) |>
   # bootstrap each column from the non-NA values in the original data
-  cbind(map_dfc(diary, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE),
+  cbind(map_dfc(datDiary, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE),
     length.out = length(synIntake$pid[synIntake$region == "US"]) * diaryWaves
   ))) |>
   # join with missingness df
@@ -551,7 +544,7 @@ synDiary <- expand.grid(pid = synIntake$pid[synIntake$region == "US"], day = 1:d
   # clean up
   select(pid, day, date, missingDiary, everything()) |>
   arrange(as.integer(pid), day) |>
-  copy_labels(diary)
+  copy_labels(datDiary)
 ```
 
 <details>
