@@ -1,9 +1,10 @@
 project:
+  type: website
   render:
     - 0_generateSyntheticData.qmd
     - 1_preprocess.qmd
     - 2_basicNeeds.qmd
-  output-dir: _output
+  output-dir: docs
 book:
   title: "Relationships Between Health and Logged Video Game Play Across Platforms"
   chapters:
