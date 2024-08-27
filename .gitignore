@@ -4,8 +4,6 @@
 .Ruserdata
 .DS_Store
 
-*.html
-*_files/
 data/
 data-synthetic/
 /.quarto/
