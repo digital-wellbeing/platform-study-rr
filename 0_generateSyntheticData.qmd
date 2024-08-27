@@ -1,4 +1,5 @@
 ---
+title: "Generate Synthetic Data"
 output: html_document
 ---
 
@@ -7,6 +8,8 @@ This file is intended for internal use---compilation requires access to the orig
 
 For external users, most relevant will be the synthetic data files and codebook that this file generates. We've nonetheless included this simulation code in case readers want to understand how the synthetic data was created. 
 :::
+
+# Generate Synthetic Data
 
 # Preamble
 
