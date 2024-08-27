@@ -87,13 +87,13 @@ processImage <- function(file) {
     image_crop(paste0(info$width*.91, "x", info$height, "-80"))
 }
 
-convertMinutes <- function(time_str) {
-  hours <- as.numeric(str_extract(time_str, "\\d+(?=h)"))
-  minutes <- as.numeric(str_extract(time_str, "\\d+(?=m)"))
+convertMinutes <- function(timeStr) {
+  hours <- as.numeric(str_extract(timeStr, "\\d+(?=h)"))
+  minutes <- as.numeric(str_extract(timeStr, "\\d+(?=m)"))
   hours[is.na(hours)] <- 0  # Replace NA hours with 0
   minutes[is.na(minutes)] <- 0  # Replace NA minutes with 0
-  total_minutes <- hours * 60 + minutes
-  return(total_minutes)
+  totalMinutes <- hours * 60 + minutes
+  return(totalMinutes)
 }
 ```
 
@@ -165,7 +165,7 @@ pre_identification_manual <- function(text) {
   flag_wrong_screenshot_4 <- grepl("Settimana scorsa", text, fixed = TRUE) #spanish 1
   flag_wrong_screenshot_5 <- grepl("UTILIZZATE MOSTRA ", text, fixed = TRUE) #spanish 2
   
-  if (flag_wrong_screenshot_1 | flag_wrong_screenshot_2 | flag_wrong_screenshot_3 | flag_wrong_screenshot_4){
+  if (flag_wrong_screenshot_1 || flag_wrong_screenshot_2 || flag_wrong_screenshot_3 || flag_wrong_screenshot_4) {
     return(TRUE)
   }
   return(FALSE)
@@ -196,7 +196,8 @@ Now to the meat of the endeavor - for each file in the screenshots data, we will
 ```{r}
 #| label: extract-data
 
-# Define categories to look for in the text - to be updated and expanded in light of new categories, OCR errors, and so on
+# Define categories to look for in the text - to be updated and expanded in
+# light of new categories, OCR errors, and so on
 categories <- c("Entertainment", "Social", "Information & Reading", "Games", "Productivity & Finance", "Travel", "Other")
 
 # Perform OCR
