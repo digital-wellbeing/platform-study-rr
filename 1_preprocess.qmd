@@ -250,4 +250,5 @@ synDiaryClean <- synDiaryClean |>
 #| label: save-data
 
 write_csv(synDiaryClean, "data-synthetic/synDiaryClean.csv")
+write_csv(synPanelClean, "data-synthetic/synPanelClean.csv")
 ```

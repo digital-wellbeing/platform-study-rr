@@ -51,6 +51,7 @@ dat <- diary |>
 
 ```{r}
 #| label: multiple-imputation
+#| eval: false
 
 diaryWide <- diary |>
   select(-date) |>
@@ -63,7 +64,8 @@ diaryWide <- diary |>
 
 quickpred(diaryWide)
 
-mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 500)
+mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, seed = 8675309)
+mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309) # alternatively, try to parallelize
 ```
 
 
