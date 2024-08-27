@@ -73,11 +73,11 @@ Here we want to:
 synDiaryClean <- synDiary |>
   mutate(
     across(starts_with(c("bpnsfs", "bangs")), ~ case_when(
-      . %in% c("1 \nStrongly Disagree", "1 - Not at all true") ~ 1,
-      . %in% c("2") ~ 2,
-      . %in% c("3") ~ 3,
-      . %in% c("4Neither Agree nor Disagree", "4") ~ 4,
-      . %in% c("5", "5 - Completely true") ~ 5,
+      . %in% c("1 \nStrongly Disagree", "1 - Not at all true", "1 - very strongly disagree") ~ 1,
+      . %in% c("2", "2 - strongly disagree") ~ 2,
+      . %in% c("3", "3 - disagree") ~ 3,
+      . %in% c("4Neither Agree nor Disagree", "4", "4 - neither disagree nor agree") ~ 4,
+      . %in% c("5", "5 - Completely true", "5 - agree") ~ 5,
       . %in% c("6") ~ 6,
       . %in% c("7 Strongly agree") ~ 7,
       TRUE ~ NA_integer_

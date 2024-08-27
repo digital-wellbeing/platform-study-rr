@@ -1,0 +1,26 @@
+project:
+  render:
+    - 0_generateSyntheticData.qmd
+    - 1_preprocess.qmd
+    - 2_basicNeeds.qmd
+  output-dir: _output
+book:
+  title: "Relationships Between Health and Logged Video Game Play Across Platforms"
+  chapters:
+    - 0_generateSyntheticData.qmd
+    - 1_preprocess.qmd
+    - 2_basicNeeds.qmd
+editor_options:
+  chunk_output_type: console
+execute:
+  warning: false
+page-layout: full
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+bibliography: references.bib
+publish:
+  gh-pages:
+    branch: main
+    folder: docs
