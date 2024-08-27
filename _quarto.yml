@@ -1,16 +1,20 @@
 project:
-  type: website
+  type: book
   render:
+    - index.qmd
     - 0_generateSyntheticData.qmd
     - 1_preprocess.qmd
     - 2_basicNeeds.qmd
   output-dir: docs
 book:
   title: "Relationships Between Health and Logged Video Game Play Across Platforms"
+  author: "Digital Wellbeing Lab"
   chapters:
+    - index.qmd
     - 0_generateSyntheticData.qmd
     - 1_preprocess.qmd
     - 2_basicNeeds.qmd
+toc: true
 editor_options:
   chunk_output_type: console
 execute:
@@ -20,6 +24,7 @@ format:
   html:
     code-fold: true
     code-summary: "Show the code"
+    theme: cosmo
 bibliography: references.bib
 publish:
   gh-pages:

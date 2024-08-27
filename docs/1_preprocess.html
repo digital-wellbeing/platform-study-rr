@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>preprocess</title>
+<title>Relationships Between Health and Logged Video Game Play Across Platforms - 3&nbsp; Preprocess Data</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -58,11 +58,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
 <script src="site_libs/clipboard/clipboard.min.js"></script>
 <script src="site_libs/quarto-search/autocomplete.umd.js"></script>
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
+<link href="./2_basicNeeds.html" rel="next">
+<link href="./0_generateSyntheticData.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -103,18 +106,103 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body>
+<body class="nav-sidebar floating">
 
 <div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./1_preprocess.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Preprocess Data</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full">
 <!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Relationships Between Health and Logged Video Game Play Across Platforms</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Relationships Between Health and Logged Video Game Play Across Platforms</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./0_generateSyntheticData.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./1_preprocess.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Preprocess Data</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./2_basicNeeds.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Study 1: Gaming and Basic Needs</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#preamble" id="toc-preamble" class="nav-link active" data-scroll-target="#preamble"><span class="header-section-number">4</span> Preamble</a></li>
+  <li><a href="#load-data" id="toc-load-data" class="nav-link" data-scroll-target="#load-data"><span class="header-section-number">5</span> Load data</a></li>
+  <li><a href="#clean-diary" id="toc-clean-diary" class="nav-link" data-scroll-target="#clean-diary"><span class="header-section-number">6</span> Clean diary</a></li>
+  <li><a href="#clean-panel" id="toc-clean-panel" class="nav-link" data-scroll-target="#clean-panel"><span class="header-section-number">7</span> Clean panel</a></li>
+  <li><a href="#process-telemetry" id="toc-process-telemetry" class="nav-link" data-scroll-target="#process-telemetry"><span class="header-section-number">8</span> Process telemetry</a></li>
+  <li><a href="#save-data" id="toc-save-data" class="nav-link" data-scroll-target="#save-data"><span class="header-section-number">9</span> Save data</a></li>
+  </ul>
+</nav>
+    </div>
 <!-- main -->
-<main class="content column-page" id="quarto-document-content">
+<main class="content column-body" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Preprocess Data</span></h1>
+</div>
 
 
+
+<div class="quarto-title-meta column-body">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
 
 
 <div class="callout callout-style-default callout-note callout-titled">
@@ -131,8 +219,8 @@ Note
 <p>All will be cleaned and tidied in due course!</p>
 </div>
 </div>
-<section id="preamble" class="level1">
-<h1>Preamble</h1>
+<section id="preamble" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Preamble</h1>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -156,8 +244,8 @@ Note
 </details>
 </div>
 </section>
-<section id="load-data" class="level1">
-<h1>Load data</h1>
+<section id="load-data" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Load data</h1>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -172,8 +260,8 @@ Note
 </details>
 </div>
 </section>
-<section id="clean-diary" class="level1">
-<h1>Clean diary</h1>
+<section id="clean-diary" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Clean diary</h1>
 <p>Here we want to: - recode the diary data to numeric values - calculate mean scores of relevant variables - calculate within- and between-person centered variables - recode the displaced activity data into categories (randomly assigned, for now) - calculate some variables based on the telemetry</p>
 <div class="cell">
 <details class="code-fold">
@@ -238,8 +326,8 @@ Note
 </details>
 </div>
 </section>
-<section id="clean-panel" class="level1">
-<h1>Clean panel</h1>
+<section id="clean-panel" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Clean panel</h1>
 <p>Here we want to: - recode the panel data to numeric values - calculate mean scores of relevant variables - calculate within- and between-person centered variables</p>
 <div class="cell">
 <details class="code-fold">
@@ -288,8 +376,8 @@ Note
 </details>
 </div>
 </section>
-<section id="process-telemetry" class="level1">
-<h1>Process telemetry</h1>
+<section id="process-telemetry" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Process telemetry</h1>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -349,8 +437,8 @@ Note
 </details>
 </div>
 </section>
-<section id="save-data" class="level1">
-<h1>Save data</h1>
+<section id="save-data" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Save data</h1>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -750,6 +838,18 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script>
+<nav class="page-navigation column-body">
+  <div class="nav-page nav-page-previous">
+      <a href="./0_generateSyntheticData.html" class="pagination-link  aria-label=" &lt;span="" synthetic="" data&lt;="" span&gt;"="">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./2_basicNeeds.html" class="pagination-link" aria-label="<span class='chapter-number'>4</span>&nbsp; <span class='chapter-title'>Study 1: Gaming and Basic Needs</span>">
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Study 1: Gaming and Basic Needs</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
 </div> <!-- /content -->
 
 

@@ -18,6 +18,8 @@ We then analyze these data in the following scripts:
 
 ## Running
 
-- For internal use, running `quarto render` in the Rstudio terminal will run all of the (completed) quarto files. This command uses the specifications in `_quarto.yml` to render the files in the correct order (indicated by their number), and output them to `_output/`.
+- For internal use, running `quarto render` in the Rstudio terminal will run all of the (completed) quarto files. This command uses the specifications in `_quarto.yml` to render the files in the correct order (indicated by their number), and output them to `docs/`.
+
+The files in `docs/` are hosted on GitHub pages here: [https://digital-wellbeing.github.io/platform-study-rr/](https://digital-wellbeing.github.io/platform-study-rr/).
 
 - For external use, !!TODO!!

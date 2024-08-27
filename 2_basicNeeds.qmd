@@ -13,6 +13,8 @@ format:
 bibliography: references.bib
 ---
 
+# Study 1: Gaming and Basic Needs
+
 ```{r}
 #| label: load-libraries
 
@@ -79,7 +81,10 @@ Experiences of gaming feed into and co-constitute experiences of life as a whole
 
 We model this with a multilevel within-between linear regression whereby game-level need satisfaction (within- and between-centered; `gameNS_cw` and `gameNS_cb`) predicts deviation from a person's typical globalNS (`globalNS`, with a random intercept).  
 
-This model, in contrast to the others, has some covariates in it, mostly as a reminder to myself to figure out whether these warrant including or not. 
+
+::: {.callout-note}
+Something super weird is happening here, with this strong negative relationship between gameNS and globalNS. I suspect this is a data issue, but I'm not sure what's going on.
+:::
 
 ```{r}
 #| label: h1-model
