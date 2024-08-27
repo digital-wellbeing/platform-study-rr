@@ -31,13 +31,13 @@ knitr::opts_chunk$set(
 )
 
 set.seed(8675309)
-
 ```
 
 ```{r}
 #| label: load-libraries
 
-if (!require("pacman")) install.packages("pacman"); library(pacman)
+if (!require("pacman")) install.packages("pacman")
+library(pacman)
 
 p_load(tidyverse)
 ```
@@ -48,13 +48,13 @@ p_load(tidyverse)
 #| label: load-data
 
 synDiary <- read_csv("data-synthetic/synDiary.csv")
-nin <- read_csv("data-synthetic/synNintendo.csv") |> 
+synPanel <- read_csv("data-synthetic/synPanel.csv")
+nin <- read_csv("data-synthetic/synNintendo.csv") |>
   mutate(sessionEnd = sessionStart + minutes(round(duration)), .after = sessionStart)
-xbox <- read_csv("data-synthetic/synXbox.csv") |> 
+xbox <- read_csv("data-synthetic/synXbox.csv") |>
   mutate(sessionEnd = sessionStart + minutes(round(duration)), .after = sessionStart)
-steam <- read_csv("data-synthetic/synSteam.csv") |> 
+steam <- read_csv("data-synthetic/synSteam.csv") |>
   mutate(sessionStart = date + hours(hour))
-
 ```
 
 # Clean diary
@@ -68,102 +68,165 @@ Here we want to:
 
 
 ```{r}
-#| label: clean-self-report
+#| label: clean-diary-self-report
 
-synDiaryClean <- synDiary |> 
+synDiaryClean <- synDiary |>
   mutate(
-    across(starts_with(c("bpnsfs","bangs")), ~case_when(
-      . %in% c("1 \nStrongly Disagree","1 - Not at all true") ~ 1,
+    across(starts_with(c("bpnsfs", "bangs")), ~ case_when(
+      . %in% c("1 \nStrongly Disagree", "1 - Not at all true") ~ 1,
       . %in% c("2") ~ 2,
       . %in% c("3") ~ 3,
-      . %in% c("4Neither Agree nor Disagree","4") ~ 4,
-      . %in% c("5","5 - Completely true") ~ 5,
+      . %in% c("4Neither Agree nor Disagree", "4") ~ 4,
+      . %in% c("5", "5 - Completely true") ~ 5,
       . %in% c("6") ~ 6,
       . %in% c("7 Strongly agree") ~ 7,
-      TRUE ~ NA_integer_)
-    )
+      TRUE ~ NA_integer_
+    ))
   ) %>%
-
   # calculate mean scores of relevant variables (there is no missing data within waves)
   mutate(
     globalNS = rowMeans(select(., bpnsfs_1:bpnsfs_3), na.rm = TRUE),
     globalNF = rowMeans(select(., bpnsfs_4:bpnsfs_6), na.rm = TRUE),
     gameNS = rowMeans(select(., bangs_1:bangs_3), na.rm = TRUE),
     gameNF = rowMeans(select(., bangs_4:bangs_6), na.rm = TRUE)
-  ) |> 
-
+  ) |>
   # Calculate within- and between-person centered variables
   group_by(pid) %>%
-  mutate(across(c(globalNS, globalNF, gameNS, gameNF), 
-                list(cw = ~ . - mean(., na.rm = TRUE),
-                     cb = ~ mean(., na.rm = TRUE)))) %>%
+  mutate(across(
+    c(globalNS, globalNF, gameNS, gameNF),
+    list(
+      cw = ~ . - mean(., na.rm = TRUE),
+      cb = ~ mean(., na.rm = TRUE)
+    )
+  )) %>%
   ungroup() %>%
-  mutate(across(ends_with("cb"), 
-                ~ . - mean(., na.rm = TRUE))) |> 
-  
-  # to understand displaced activities, we will manually code the true participant activity data into categories. 
-  # We pre-define 5 problematic displacement categories (work/school, social engagements, sleep, eating, fitness, caretaking) 
-  # and one catch-all category (other), which may later be broken down into subcategories. 
+  mutate(across(
+    ends_with("cb"),
+    ~ . - mean(., na.rm = TRUE)
+  )) |>
+  # to understand displaced activities, we will manually code the true
+  # participant activity data into categories. We pre-define 5 problematic
+  # displacement categories (work/school, social engagements, sleep, eating,
+  # fitness, caretaking) and one catch-all category (other), which may later be
+  # broken down into subcategories.
   mutate(
-    displacedActivityCategory = ifelse(!is.na(displacedActivity), 
-                                       sample(c("work/school", "social engagements", "sleep", "eating", "fitness", "caretaking","other"), 
-                                              n(), 
-                                              prob = c(.05, .05, .05, .05, .05, .05, .75),
-                                              replace = TRUE),
-                                       NA_character_),
-    displacedCoreDomain = ifelse(displacedActivityCategory %in% c("work/school", "social engagements", 
-                                                                  "sleep", "eating", "fitness", "caretaking","other"),
-                                 TRUE,
-                                 FALSE),
+    displacedActivityCategory = ifelse(!is.na(displacedActivity),
+      sample(c("work/school", "social engagements", "sleep", "eating", "fitness", "caretaking", "other"),
+        n(),
+        prob = c(.05, .05, .05, .05, .05, .05, .75),
+        replace = TRUE
+      ),
+      NA_character_
+    ),
+    displacedCoreDomain = ifelse(displacedActivityCategory %in% c(
+      "work/school", "social engagements",
+      "sleep", "eating", "fitness", "caretaking", "other"
+    ),
+    TRUE,
+    FALSE
+    ),
     .after = displacedActivity
   )
-
 ```
 
-## Process telemetry
+# Clean panel
+
+Here we want to:
+- recode the panel data to numeric values
+- calculate mean scores of relevant variables
+- calculate within- and between-person centered variables
+
+```{r}
+#| label: clean-panel-self-report
+
+synPanelClean <- synPanel |>
+  mutate(
+    across(starts_with(c("bangs", "wemwbs", "promis", "trojan", "BFI")), ~ case_when(
+      . %in% c("Greatly interfered") ~ -3,
+      . %in% c("Moderately interfered") ~ -2,
+      . %in% c("Slightly interfered") ~ -1,
+      . %in% c("No impact") ~ 0,
+      . %in% c(
+        "1 \nStrongly Disagree", "1 - Not at all true", "1 - None of the time", "Never", "1 - Strongly disagree",
+        "Disagree strongly", "Slightly supported"
+      ) ~ 1,
+      . %in% c("2", "2 - Rarely", "Rarely", "Disagree a little", "Moderately supported") ~ 2,
+      . %in% c("3", "3 - Some of the time", "Sometimes", "Neutral; no opinion", "Greatly supported") ~ 3,
+      . %in% c("4Neither Agree nor Disagree", "4", "4 - Often", "Often", "Agree a little") ~ 4,
+      . %in% c("5", "5 - Completely true", "5 - All of the time", "Always", "5 - Strongly agree", "Agree strongly") ~ 5,
+      . %in% c("6") ~ 6,
+      . %in% c("7 Strongly agree") ~ 7,
+      TRUE ~ NA_integer_
+    ))
+  ) %>%
+  # calculate mean scores of relevant variables (there is no missing data within waves)
+  mutate(
+    wemwbs = rowMeans(select(., wemwbs_1:wemwbs_7), na.rm = TRUE),
+    promis = rowMeans(select(., promis_1:promis_8), na.rm = TRUE),
+    gameNS = rowMeans(select(., bangs_1:bangs_3, bangs_7:bangs_9, bangs_13:bangs_15), na.rm = TRUE),
+    gameNF = rowMeans(select(., bangs_4:bangs_6, bangs_10:bangs_12, bangs_16:bangs_18), na.rm = TRUE)
+  ) |>
+  # Calculate within- and between-person centered variables
+  group_by(pid) %>%
+  mutate(across(
+    c(wemwbs, promis, gameNS, gameNF),
+    list(
+      cw = ~ . - mean(., na.rm = TRUE),
+      cb = ~ mean(., na.rm = TRUE)
+    )
+  )) %>%
+  ungroup() %>%
+  mutate(across(
+    ends_with("cb"),
+    ~ . - mean(., na.rm = TRUE)
+  ))
+```
+
+
+# Process telemetry
 
 ```{r}
 #| label: process-telemetry
 
 # TODO: make sure that sessions happening as late as 6 hours later are still included, even if this isn't on the same day
 
-# in the below, we join the survey data to each telemetry table, 
+# in the below, we join the survey data to each telemetry table,
 # and filter for only the sessions/rows that happened immediately after the survey was completed.
 # after, we join these back together with a binary indicator of whether at least one session occurred
 
 nintendoOverlaps <- synDiaryClean %>%
-  left_join(nin, by = c("pid", "day", "date")) |> 
+  left_join(nin, by = c("pid", "day", "date")) |>
   filter(
-    sessionEnd >= surveyCompletionTime |                    # Session ended after the survey time
-    sessionStart <= surveyCompletionTime + days(1)           # Session started before the end of the time window
-  ) |> 
-  group_by(pid, day, date) |> 
-  summarize(playedLaterNintendo = TRUE, .groups = 'drop')
+    sessionEnd >= surveyCompletionTime | # Session ended after the survey time
+      sessionStart <= surveyCompletionTime + days(1) # Session started before the end of the time window
+  ) |>
+  group_by(pid, day, date) |>
+  summarize(playedLaterNintendo = TRUE, .groups = "drop")
 
 xboxOverlaps <- synDiaryClean %>%
-  left_join(xbox, by = c("pid", "day", "date")) |> 
+  left_join(xbox, by = c("pid", "day", "date")) |>
   filter(
-    sessionEnd >= surveyCompletionTime |                    # Session ended after the survey time
-    sessionStart <= surveyCompletionTime + days(1)              # Session started before the end of the time window
-  ) |> 
-  group_by(pid, day, date) |> 
-  summarize(playedLaterXbox = TRUE, .groups = 'drop')
+    sessionEnd >= surveyCompletionTime | # Session ended after the survey time
+      sessionStart <= surveyCompletionTime + days(1) # Session started before the end of the time window
+  ) |>
+  group_by(pid, day, date) |>
+  summarize(playedLaterXbox = TRUE, .groups = "drop")
 
 steamOverlaps <- synDiaryClean %>%
-  left_join(steam, by = c("pid", "day", "date")) |> 
+  left_join(steam, by = c("pid", "day", "date")) |>
   filter(
-    sessionStart <= surveyCompletionTime + days(1)           # Session started before the end of the time window
-  ) |> 
-  group_by(pid, day, date) |> 
-  summarize(playedLaterSteam = TRUE, .groups = 'drop')
+    sessionStart <= surveyCompletionTime + days(1) # Session started before the end of the time window
+  ) |>
+  group_by(pid, day, date) |>
+  summarize(playedLaterSteam = TRUE, .groups = "drop")
 
 
 # Step 3: Determine if any Nintendo sessions occurred in the time window for each row in df
-synDiaryClean <- synDiaryClean |> 
+synDiaryClean <- synDiaryClean |>
   left_join(
     nintendoOverlaps,
     by = c("pid", "day", "date")
-  ) |> 
+  ) |>
   left_join(
     xboxOverlaps,
     by = c("pid", "day", "date")
@@ -178,7 +241,6 @@ synDiaryClean <- synDiaryClean |>
     playedLaterSteam = if_else(is.na(playedLaterSteam), FALSE, playedLaterSteam),
     playedLaterAny = ifelse(playedLaterNintendo | playedLaterXbox | playedLaterSteam, TRUE, FALSE)
   )
-
 ```
 
 
@@ -188,5 +250,4 @@ synDiaryClean <- synDiaryClean |>
 #| label: save-data
 
 write_csv(synDiaryClean, "data-synthetic/synDiaryClean.csv")
-
 ```
