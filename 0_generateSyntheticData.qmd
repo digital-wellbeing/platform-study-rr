@@ -429,7 +429,7 @@ syniOS <- expand.grid(
   ungroup() |>
   select(pid, week, date, missing, dropout, everything()) |>
   mutate(across(-c(pid, week, missing, dropout), ~ if_else(missing | dropout, NA, .))) |>
-  arrange(as.integer(pid), week)
+  arrange(as.integer(pid), week) |> mutate(platform = "iOS")
 
 glimpse(syniOS)
 ```
@@ -467,7 +467,7 @@ synAndroid <- expand.grid(
   group_by(app) |>
   mutate(category = sample(appCategories, 1, replace = TRUE)) |>
   ungroup() |>
-  arrange(as.integer(pid), day, sessionStart)
+  arrange(as.integer(pid), day, sessionStart) |> mutate(platform = "Android")
 
 glimpse(synAndroid)
 ```
@@ -506,6 +506,20 @@ synPanel <- expand.grid(pid = as.character(1:n), wave = 1:panelWaves) |>
   mutate(across(-c(pid, wave, missingPanel), ~ if_else(missingPanel, NA, .))) |>
   arrange(as.numeric(pid), wave) |>
   copy_labels(datPanel)
+
+# added by Tamas
+# Special transformation needs to be done to `psqi_4#1_1_1` and `psqi_4#1_1_2` columns to move values in normal range.
+
+# Calculate the minimum and maximum values of the column
+min_val <- min(synPanel$`psqi_4#1_1_1`, na.rm = TRUE)
+max_val <- max(synPanel$`psqi_4#1_1_1`, na.rm = TRUE)
+# Rescale the values to be between 0 and 12
+synPanel$`psqi_4#1_1_1` <- (synPanel$`psqi_4#1_1_1` - min_val) / (max_val - min_val) * 12
+# Calculate the minimum and maximum values of the column
+min_val <- min(synPanel$`psqi_4#1_1_2`, na.rm = TRUE)
+max_val <- max(synPanel$`psqi_4#1_1_2`, na.rm = TRUE)
+# Rescale the values to be between 0 and 12
+synPanel$`psqi_4#1_1_2` <- (synPanel$`psqi_4#1_1_2` - min_val) / (max_val - min_val) * 60
 ```
 
 <details>
@@ -803,12 +817,25 @@ Save the data to `data-synthetic`, for use in devising analysis scripts for e.g.
 ```{r}
 #| label: save-data
 
+library(readr)
+
+# Export as CSV
 write_csv(synIntake, "data-synthetic/synIntake.csv")
 write_csv(synDiary, "data-synthetic/synDiary.csv")
 write_csv(synPanel, "data-synthetic/synPanel.csv")
 write_csv(synXbox, "data-synthetic/synXbox.csv")
 write_csv(synNintendo, "data-synthetic/synNintendo.csv")
-write_csv(synAndroid, "data-synthetic/synAndroid")
+write_csv(synAndroid, "data-synthetic/synAndroid.csv")
 write_csv(synSteam, "data-synthetic/synSteam.csv")
 write_csv(syniOS, "data-synthetic/syniOS.csv")
+
+# Export as RDS
+saveRDS(synIntake, "data-synthetic/synIntake.rds")
+saveRDS(synDiary, "data-synthetic/synDiary.rds")
+saveRDS(synPanel, "data-synthetic/synPanel.rds")
+saveRDS(synXbox, "data-synthetic/synXbox.rds")
+saveRDS(synNintendo, "data-synthetic/synNintendo.rds")
+saveRDS(synAndroid, "data-synthetic/synAndroid.rds")
+saveRDS(synSteam, "data-synthetic/synSteam.rds")
+saveRDS(syniOS, "data-synthetic/syniOS.rds")
 ```
