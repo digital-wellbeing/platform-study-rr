@@ -35,7 +35,7 @@ if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
 p_load(
-  tidyverse, jsonlite, qualtRics, sjlabelled, hms, openxlsx
+  tidyverse, jsonlite, qualtRics, sjlabelled, hms, openxlsx, scales
 )
 ```
 
@@ -326,10 +326,11 @@ synNintendo <- synPlayHistory |>
   mutate(session = list(1:numSessionsNintendo)) |>
   unnest(session) |>
   mutate(
-    titleID = sample(datNintendo$titleID, n(), replace = TRUE), ,
+    titleID = sample(datNintendo$titleID, n(), replace = TRUE),
     sessionStart = date + seconds(runif(n(), 0, 86400)),
     duration = sample(datNintendo$duration, n(), replace = TRUE),
-    genre = replicate(n(), assignGenres(uniqueGenres))
+    sessionEnd = sessionStart + minutes(as.integer(duration)),
+    genre = replicate(n(), assignGenres(uniqueGenres)),
   ) |>
   select(-(playsSwitch:numHoursWithSteamPlay)) |>
   mutate(platform = "Nintendo")
@@ -355,6 +356,7 @@ synXbox <- synPlayHistory |>
     titleID = sample(xboxGames$`Game Title`, n(), replace = TRUE),
     sessionStart = date + seconds(runif(n(), 0, 86400)),
     duration = round(rgamma(n(), shape = 2, rate = 1) * 60, 2),
+    sessionEnd = sessionStart + minutes(as.integer(duration)),
     genre = replicate(n(), assignGenres(uniqueGenres))
   ) |>
   select(-(playsSwitch:numHoursWithSteamPlay)) |>
@@ -391,6 +393,12 @@ synSteam <- synPlayHistory |>
   unnest(cols = c(sampled_row)) |>
   # clean up
   select(pid, day, date, hour = time, everything(), -(playsSwitch:numHoursWithSteamPlay), -ID, -played) |>
+
+  # add some columns to match the format of the other datasets
+  mutate(
+    sessionStart = as.POSIXct(paste(date, hour), format = "%Y-%m-%d %H"), 
+    sessionEnd = sessionStart+minutes(as.integer(minutes))
+  ) |> 
   arrange(as.integer(pid), day, date, hour) |>
   mutate(platform = "Steam")
 
@@ -459,8 +467,10 @@ synAndroid <- expand.grid(
   unnest(session) |>
   mutate(
     app = sample(androidEvents$data.app, n(), replace = TRUE), ,
-    sessionStart = as_hms(sample(ymd_hms(androidEvents$timestamp), n(), replace = TRUE)),
+    sessionStart = sample(ymd_hms(androidEvents$timestamp), n(), replace = TRUE),
+    sessionStart = as.period(as_hms(sessionStart)),
     duration = sample(androidEvents$duration, n(), replace = TRUE),
+    sessionEnd = sessionStart + minutes(as.integer(duration)),
   ) |>
   # for simplicity at the simulation stage, we simply random assign categories to each app, matching the iOS categories
   # in the full paper, we will map apps to categories using the google play store API
@@ -492,6 +502,12 @@ synPanel <- expand.grid(pid = as.character(1:n), wave = 1:panelWaves) |>
   ) |>
   # bootstrap each column from the non-NA values in the original data
   cbind(map_dfc(datPanel, ~ rep(sample(.[!is.na(.)], length(.), replace = TRUE), length.out = n * panelWaves))) |>
+
+  # Special transformation needs to be done to `psqi_4#1_1_1` and `psqi_4#1_1_2` columns to move values in normal range.
+  mutate(
+    `psqi_4#1_1_1` = rescale(`psqi_4#1_1_1`, to = c(0, 12), na.rm = TRUE),
+    `psqi_4#1_1_2` = rescale(`psqi_4#1_1_2`, to = c(0, 60), na.rm = TRUE)
+  ) |> 
   # certain measures are only administered at certain waves, set these to 0 for
   # the other waves
   mutate(across(starts_with(c("BFI", "trojan", "mctq")), ~ ifelse(wave != 1, NA, .))) |>
@@ -507,19 +523,6 @@ synPanel <- expand.grid(pid = as.character(1:n), wave = 1:panelWaves) |>
   arrange(as.numeric(pid), wave) |>
   copy_labels(datPanel)
 
-# added by Tamas
-# Special transformation needs to be done to `psqi_4#1_1_1` and `psqi_4#1_1_2` columns to move values in normal range.
-
-# Calculate the minimum and maximum values of the column
-min_val <- min(synPanel$`psqi_4#1_1_1`, na.rm = TRUE)
-max_val <- max(synPanel$`psqi_4#1_1_1`, na.rm = TRUE)
-# Rescale the values to be between 0 and 12
-synPanel$`psqi_4#1_1_1` <- (synPanel$`psqi_4#1_1_1` - min_val) / (max_val - min_val) * 12
-# Calculate the minimum and maximum values of the column
-min_val <- min(synPanel$`psqi_4#1_1_2`, na.rm = TRUE)
-max_val <- max(synPanel$`psqi_4#1_1_2`, na.rm = TRUE)
-# Rescale the values to be between 0 and 12
-synPanel$`psqi_4#1_1_2` <- (synPanel$`psqi_4#1_1_2` - min_val) / (max_val - min_val) * 60
 ```
 
 <details>
@@ -816,8 +819,6 @@ Save the data to `data-synthetic`, for use in devising analysis scripts for e.g.
 
 ```{r}
 #| label: save-data
-
-library(readr)
 
 # Export as CSV
 write_csv(synIntake, "data-synthetic/synIntake.csv")

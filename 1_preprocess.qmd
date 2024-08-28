@@ -41,7 +41,7 @@ set.seed(8675309)
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
-p_load(tidyverse)
+p_load(tidyverse, mctq)
 ```
 
 ## Load data
@@ -51,6 +51,8 @@ p_load(tidyverse)
 
 synDiary <- read_csv("data-synthetic/synDiary.csv")
 synPanel <- read_csv("data-synthetic/synPanel.csv")
+synIntake <- read_csv("data-synthetic/synIntake.csv")
+
 nin <- read_csv("data-synthetic/synNintendo.csv") |>
   mutate(sessionEnd = sessionStart + minutes(round(duration)), .after = sessionStart)
 xbox <- read_csv("data-synthetic/synXbox.csv") |>
@@ -58,6 +60,57 @@ xbox <- read_csv("data-synthetic/synXbox.csv") |>
 steam <- read_csv("data-synthetic/synSteam.csv") |>
   mutate(sessionStart = date + hours(hour))
 ```
+
+## Clean intake
+
+```{r}
+#| label: clean-intake
+
+synIntakeClean <- synIntake |>
+  # define socio-economic status (SES) index
+  mutate(
+    # Assigning scores to employment categories
+    empScore = case_when(
+      employment == "Full-Time" ~ 5,
+      employment == "Part-Time" ~ 4,
+      employment == "Due to start a new job within the next month" ~ 3,
+      employment == "Not in paid work (e.g. homemaker', 'retired or disabled)" ~ 2,
+      employment == "Unemployed (and job seeking)" ~ 1,
+      employment == "Other" ~ NA_real_ ,  # Adjust based on context if necessary
+      TRUE ~ NA_real_  # Handle any other cases
+    ),
+    
+    # Assigning scores to education levels
+    eduScore = case_when(
+      eduLevel == "Graduate or professional degree (MA, MS, MBA, PhD, etc)" ~ 7,
+      eduLevel == "University Bachelors Degree" ~ 6,
+      eduLevel == "Some University but no degree" ~ 5,
+      eduLevel == "Vocational or Similar" ~ 4,
+      eduLevel == "Completed Secondary School" ~ 3,
+      eduLevel == "Some Secondary" ~ 2,
+      eduLevel == "Completed Primary School" ~ 1,
+      eduLevel == "Some Primary" ~ 1,
+      eduLevel == "Prefer not to say" ~ NA_real_,  # Treat as missing
+      TRUE ~ NA_real_  # Handle any other cases
+    ),
+    
+    # Combining the scores into a SES index
+    SES_index = empScore + eduScore
+  ) |> 
+  mutate(
+    # Calculate total height in inches
+    total_inches = `height#1_1_1` * 12 + `height#1_1_2`,
+    
+    # Calculate BMI using the formula
+    bmi = (weight / (total_inches^2)) * 703,
+
+    age_scaled = as.numeric(scale(age, center = TRUE, scale = TRUE)),
+    bmi_scaled = as.numeric(scale(bmi, center = TRUE, scale = TRUE)),
+    SES_index_scaled = as.numeric(scale(SES_index, center = TRUE, scale = TRUE))
+  )
+
+```
+
 
 ## Clean diary
 
@@ -138,22 +191,34 @@ Here we want to:
 - calculate mean scores of relevant variables
 - calculate within- and between-person centered variables
 
+### Chronotype
+
+::: {.callout-note}
+Some notes on Chronotype: 
+:::
+
+Chronotype or sleep-corrected local time of mid-sleep on work-free days msf_sc() allows you to compute the chronotype, or corrected local time of mid-sleep on work-free days. It takes five arguments: msf (local time of mid-sleep on work-free days), sd_w (sleep duration on workdays), sd_f (sleep duration on work-free days), sd_week(average weekly sleep duration), and alarm_f (a logical object indicating if the respondent uses an alarm clock to wake up on work-free days).
+
+If sd_f is less or equal than sd_w, the output must be msf. Else, it must return msf minus the difference between sd_f and sd_week divided by 2. msf_sc can only be computed if alarm_f is equal to FALSE (the function will return NA when alarm_f == TRUE).
+
+`msf_sc` applies a correction to msf, removing an estimation of the effect from accumulated sleep debt on workdays that usually is compensated on work-free days. See `?msf_sc` to learn more.
+
 ```{r}
 #| label: clean-panel-self-report
 
 synPanelClean <- synPanel |>
   mutate(
-    across(starts_with(c("bangs", "wemwbs", "promis", "trojan", "BFI")), ~ case_when(
+    across(starts_with(c("bangs", "wemwbs", "promis", "trojan", "BFI", "eps")), ~ case_when(
       . %in% c("Greatly interfered") ~ -3,
       . %in% c("Moderately interfered") ~ -2,
       . %in% c("Slightly interfered") ~ -1,
-      . %in% c("No impact") ~ 0,
+      . %in% c("No impact","No chance of dozing") ~ 0,
       . %in% c(
         "1 \nStrongly Disagree", "1 - Not at all true", "1 - None of the time", "Never", "1 - Strongly disagree",
-        "Disagree strongly", "Slightly supported"
+        "Disagree strongly", "Slightly supported", "Slight chance of dozing"
       ) ~ 1,
-      . %in% c("2", "2 - Rarely", "Rarely", "Disagree a little", "Moderately supported") ~ 2,
-      . %in% c("3", "3 - Some of the time", "Sometimes", "Neutral; no opinion", "Greatly supported") ~ 3,
+      . %in% c("2", "2 - Rarely", "Rarely", "Disagree a little", "Moderately supported", "Moderate chance of dozing") ~ 2,
+      . %in% c("3", "3 - Some of the time", "Sometimes", "Neutral; no opinion", "Greatly supported", "High chance of dozing") ~ 3,
       . %in% c("4Neither Agree nor Disagree", "4", "4 - Often", "Often", "Agree a little") ~ 4,
       . %in% c("5", "5 - Completely true", "5 - All of the time", "Always", "5 - Strongly agree", "Agree strongly") ~ 5,
       . %in% c("6") ~ 6,
@@ -161,12 +226,13 @@ synPanelClean <- synPanel |>
       TRUE ~ NA_integer_
     ))
   ) %>%
-  # calculate mean scores of relevant variables (there is no missing data within waves)
+  # calculate mean/sum scores of relevant variables (there is no missing data within waves)
   mutate(
     wemwbs = rowMeans(select(., wemwbs_1:wemwbs_7), na.rm = TRUE),
     promis = rowMeans(select(., promis_1:promis_8), na.rm = TRUE),
     gameNS = rowMeans(select(., bangs_1:bangs_3, bangs_7:bangs_9, bangs_13:bangs_15), na.rm = TRUE),
-    gameNF = rowMeans(select(., bangs_4:bangs_6, bangs_10:bangs_12, bangs_16:bangs_18), na.rm = TRUE)
+    gameNF = rowMeans(select(., bangs_4:bangs_6, bangs_10:bangs_12, bangs_16:bangs_18), na.rm = TRUE),
+    epsTotal = rowSums(select(., eps_1_1:eps_1_8), na.rm = TRUE),
   ) |>
   # Calculate within- and between-person centered variables
   group_by(pid) %>%
@@ -181,7 +247,92 @@ synPanelClean <- synPanel |>
   mutate(across(
     ends_with("cb"),
     ~ . - mean(., na.rm = TRUE)
-  ))
+  )) |> 
+
+  # calculate amount of sleep
+  mutate(
+    psqi_4_1_1_1_hours = as.numeric(`psqi_4#1_1_1`), # Convert hours to numeric
+    psqi_4_1_1_2_hours = as.numeric(`psqi_4#1_1_2`) / 60, # Convert minutes to numeric hours
+    total_hours_sleep = psqi_4_1_1_1_hours + psqi_4_1_1_2_hours, # Compute total hours of sleep
+    .keep = "unused"
+  ) |> 
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~
+  # calculate chronotype ####
+  # ~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  # rename mctq_1 to work  and turn it into a logical variable where 1 is 1 and 2 is 0, other is NA
+   mutate(work = case_when(
+    mctq_1 == 1 ~ 1,
+    mctq_1 == 2 ~ 0,
+    TRUE ~ NA_real_
+   )) |> 
+   rename(
+    wd = mctq_2_1, 
+    bt_w = mctq_3_1, 
+    sprep_w = mctq_3_3, 
+    slat_w = mctq_3_4, 
+    se_w = mctq_3_5, 
+    si_w = mctq_3_6,
+    bt_f = mctq_6_1, 
+    sprep_f = mctq_6_3, 
+    slat_f = mctq_6_4, 
+    se_f = mctq_6_5, 
+    si_f = mctq_6_6,
+    reasons_why_f = mctq_8_1
+  ) |> 
+  mutate(
+    alarm_w = case_when(
+      mctq_4_1 == "Yes" ~ 1,
+      mctq_4_1 == "No" ~ 0,
+      TRUE ~ NA_real_),
+    wake_before_w = case_when(
+      mctq_5_1 == "Yes" ~ 1,
+      mctq_5_1 == "No" ~ 0,
+      TRUE ~ NA_real_
+    ),
+    alarm_f = case_when(
+      mctq_7_1 == "Yes" ~ 1,
+      mctq_7_1 == "No" ~ 0,
+      TRUE ~ NA_real_
+    ),
+    reasons_f = case_when(
+      mctq_7_2 == "Yes" ~ 1,
+      mctq_7_2 == "No" ~ 0,
+      TRUE ~ NA_real_
+    ),
+  ) |>
+  mutate(
+    across("wd", as.integer),
+    across(matches("^work$|^alarm_|^wake_|^reasons_f$"), as.logical),
+    across(matches("^bt_|^sprep_|^se_"), hms::parse_hm),
+    across(matches("^slat_|^si_"), ~ dminutes(as.numeric(.x)))
+  ) |> 
+  # Calculate sleep onset
+  mutate(
+    so_w = mctq::so(sprep_w, slat_w),
+    so_f = mctq::so(sprep_f, slat_f)
+  ) |>
+  # Calculate sleep duration
+  mutate(
+    sd_w = mctq::sdu(so_w, se_w),
+    sd_f = mctq::sdu(so_f, se_f)
+  ) |>
+  # Calculate midsleep time
+  mutate(
+    msw = mctq::msl(so_w, sd_w),
+    msf = mctq::msl(so_f, sd_f)
+  ) |>
+  # Calculate weekly sleep duration
+  mutate(
+    sd_week = mctq::sd_week(sd_w, sd_f, wd)
+  ) |> 
+  # Calculate chronotype
+  mutate(
+    msf_sc = mctq::msf_sc(msf, sd_w, sd_f, sd_week, alarm_f),
+    msf_sc_numeric = as.numeric(msf_sc) / 3600
+  )
+
 ```
 
 
@@ -245,12 +396,20 @@ synDiaryClean <- synDiaryClean |>
   )
 ```
 
+## Exclusion criteria
+
+```{r}
+#| label: exclusion-criteria
+
+# TODO: exclude crazy telemetry
+```
 
 ## Save data
 
 ```{r}
 #| label: save-data
 
+write_csv(synIntakeClean, "data-synthetic/synIntakeClean.csv")
 write_csv(synDiaryClean, "data-synthetic/synDiaryClean.csv")
 write_csv(synPanelClean, "data-synthetic/synPanelClean.csv")
 ```

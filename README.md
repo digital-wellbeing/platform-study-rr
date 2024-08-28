@@ -1,11 +1,16 @@
 # Relationships Between Health and Logged Video Game Play Across Platforms
 
-This repo is structured to match our programmatic registered report. 
+This repo documents the data and analysis code for our project on the relationship between video game play and wellbeing. It has four main components:
+- generating simulated data to illustrate our preregistered analyses
+- documenting the data and creating a vodebook
+- preprocessing the data for analysis 
+- data analysis for three outputs, structured to match our programmatic registered report. 
 
+To reproduce the project in its entirety, run `quarto render --profile internal` (for lab members), or `quarto render --profile external` (for non-lab members). More details are provided below. 
 
 ## Scripts
 
-The first script generates a series of 8 simulated data tables, overviewed in `codebook.xlsx`. Generating the synthetic data is only possible by **internal** users, but the code is available in `0_generateSyntheticData.qmd`. The remaining scripts can be run by **external** users.
+The first script generates a series of 8 simulated data tables, overviewed in `codebook.xlsx`. Generating the simulated  data is only possible by **internal** users, but the code is available in `0_generateSyntheticData.qmd`. The remaining scripts can be run by **external** users.
 
 These data tables are generated in the following scripts:
 
@@ -20,8 +25,11 @@ We then analyze these data in the following scripts:
 - In `9_screenshots.qmd`, we present work-in-progress optical character recognition code for extracting screen use data from iOS screenshots. 
 
 ## Hygiene files
+
 - `.Renviron` defines the path to key internal data files and API credentials.
 - `index.qmd` is the header file that stitches the other Quarto files together into book form. 
+- `_quarto-internal.yml` defines the order in which files are run and project-level variables for **internal** use 
+- `_quarto-external.yml` defines the order in which files are run and project-level variables for **external** use (same as `_quarto-internal.yml` with the exception of not running `0_generateSyntheticData.qmd`)
 
 ## Running
 
