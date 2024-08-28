@@ -1,4 +1,5 @@
 ---
+title: "Preprocess Data"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -12,7 +13,6 @@ format:
 bibliography: references.bib
 ---
 
-# Preprocess Data
 
 ::: {.callout-note}
 This is very much WIP - I'm adding in the preprocessing of measures/variables as and when we need them for particular models. 
@@ -20,7 +20,7 @@ This is very much WIP - I'm adding in the preprocessing of measures/variables as
 All will be cleaned and tidied in due course!
 :::
 
-# Preamble
+## Preamble
 
 ```{r}
 #| label: opts
@@ -44,7 +44,7 @@ library(pacman)
 p_load(tidyverse)
 ```
 
-# Load data
+## Load data
 
 ```{r}
 #| label: load-data
@@ -59,7 +59,7 @@ steam <- read_csv("data-synthetic/synSteam.csv") |>
   mutate(sessionStart = date + hours(hour))
 ```
 
-# Clean diary
+## Clean diary
 
 Here we want to:
 - recode the diary data to numeric values
@@ -131,7 +131,7 @@ synDiaryClean <- synDiary |>
   )
 ```
 
-# Clean panel
+## Clean panel
 
 Here we want to:
 - recode the panel data to numeric values
@@ -185,7 +185,7 @@ synPanelClean <- synPanel |>
 ```
 
 
-# Process telemetry
+## Process telemetry
 
 ```{r}
 #| label: process-telemetry
@@ -246,7 +246,7 @@ synDiaryClean <- synDiaryClean |>
 ```
 
 
-# Save data
+## Save data
 
 ```{r}
 #| label: save-data

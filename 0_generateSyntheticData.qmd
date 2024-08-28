@@ -11,7 +11,7 @@ For external users, most relevant will be the synthetic data files and codebook 
 
 # Generate Synthetic Data
 
-# Preamble
+## Preamble
 
 First, set options and load some libraries we'll need.
 
@@ -155,7 +155,7 @@ studyDays <- panelWaves * 14
 studyDates <- ymd(studyStartDate + days(0:studyDays))
 ```
 
-# Simulate participant sample
+## Simulate participant sample
 
 First we simulate the sample as taken - their age, gender, region, and gameplay tendencies. We bootstrap from existing Nintendo pilot data, but add some demographic details that are not present in the Prolific data. This takes the format of the intake questionnaire on Qualtrics, and therefore needs to import that survey. 
 
@@ -165,7 +165,7 @@ We also simulate the gameplay behavior of participants - what platforms do they 
 Participant platforms don't match the responses in the `platforms_X` intake items, as these are generated from Qualtrics test responses. We have a better idea of the platform distribution so we simulate that ourselves. 
 :::
 
-## Intake
+### Intake
 
 ```{r}
 #| label: sim-intake
@@ -232,7 +232,7 @@ synIntake <- tibble(
   copy_labels(datIntake)
 ```
 
-## Play History
+### Play History
 
 Next, we want to simulate some play behavior. We assume that each player has a fixed likelihood of playing on each platform they use on a given day. If they do play, we assume they will play between 1 and 3 sessions (or in the case of Steam, that they have logged playtime in 1-5 1-hour periods of the day). We simulate those values here. 
 
@@ -260,7 +260,7 @@ synPlayHistory <- synIntake |>
   )
 ```
 
-## Dropout/attrition
+### Dropout/attrition
 
 Here, we simulate the properties of participant dropout. We assume that participants have a base rate of missingness at each wave (5% for diary, 10% for panel), and a separate chance each day of dropping out for the rest of the study (1% for the 84 days of the study). We simulate the missingness and dropout for each participant for each day of the study, and use this information later to remove rows from the completed panel and diary surveys.
 
@@ -296,11 +296,11 @@ dropout <- expand.grid(pid = 1:n, day = 1:studyDays) |>
 ```
 
 
-# Simulate Telemetry
+## Simulate Telemetry
 
 First we quickly generate a list of unique genres, which we will later randomly assign to games. In the real study, we will match games on all platforms to these same categories using the IGDB database. 
 
-## Genres
+### Genres
 
 ```{r}
 #| label: sim-genres
@@ -314,7 +314,7 @@ uniqueGenres <- datMeta |>
   sort()
 ```
 
-## Nintendo
+### Nintendo
 
 Next, we simulate the session-level data based on the play behavior, starting with Nintendo. For each day and session that a participant has played, we bootstrap the title, start time, and duration, from the existing data. For example, Participant 14 played Switch on Day 11, and their play was simulated to include 2 unique sessions. Games, session start times, and session durations are all drawn randomly from the real Nintendo data.
 
@@ -337,7 +337,7 @@ synNintendo <- synPlayHistory |>
 glimpse(synNintendo)
 ```
 
-## Xbox
+### Xbox
 
 We take a similar approach for the Xbox data. However, instead of bootstrapping, we instead randomly pull from a list of an external list of Xbox games. We pull session start times from the Nintendo dataset as these are probably an equally good representation, but simulate a new set of durations as the average Xbox session is likely longer than Nintendo. 
 
@@ -363,7 +363,7 @@ synXbox <- synPlayHistory |>
 glimpse(synXbox)
 ```
 
-## Steam
+### Steam
 
 Next, we move to Steam data. Here we use an existing sample of Steam data as output by Gameplay.Science (hosted on OneDrive, path specified in `.Renviron`). 
 
@@ -397,7 +397,7 @@ synSteam <- synPlayHistory |>
 glimpse(synSteam)
 ```
 
-## iOS
+### iOS
 
 iOS data consists of weekly screen time data for the below categories (pre-defined by Apple). We simulate the value of each of these categories for each participant-week using a zero-inflated gamma distribution, then add dropout as before.
 
@@ -434,7 +434,7 @@ syniOS <- expand.grid(
 glimpse(syniOS)
 ```
 
-## Android 
+### Android 
 
 Last, we simulate android data, bootstrapping from a sample ActivityWatch output (hosted on OneDrive, path specified in `.Renviron`).
 
@@ -473,13 +473,13 @@ glimpse(synAndroid)
 ```
 
 
-# Simulate self-report data (diary and panel)
+## Simulate self-report data (diary and panel)
 
 We now move to the self-report data. For both surveys, the simplest option is to just use Qualtrics' "generate test response" feature, then pull that data using the Qualtrics API, so that the simulated data accurately mirrors the structure of the data we will later have (if not the distributional properties).
 
 We'll want to add missingness and dropout to both the panel and diary data, which we do by adding a base chance of missingness at every wave, alongside a separate chance at each wave that the participant will drop out for the rest of the study. See above for details.
 
-## Panel
+### Panel
 
 ```{r}
 #| label: sim-panel-data
@@ -534,7 +534,7 @@ glimpse(synPanel)
 
 </details>
 
-## Diary
+### Diary
 
 ```{r}
 #| label: sim-diary-data
@@ -577,7 +577,7 @@ glimpse(synDiary)
 
 </details>
 
-# Generate Codebook
+## Generate Codebook
 
 Generate `codebook.xlsx`. 
 
@@ -810,7 +810,7 @@ saveWorkbook(codebook, "codebook.xlsx", overwrite = TRUE)
 ```
 
 
-# Save data
+## Save data
 
 Save the data to `data-synthetic`, for use in devising analysis scripts for e.g. the registered reports to come.
 

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Relationships Between Health and Logged Video Game Play Across Platforms - 2&nbsp; Generate Synthetic Data</title>
+<title>Relationships Between Health and Logged Video Game Play Across Platforms - 4&nbsp; Generate Synthetic Data</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -64,8 +64,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./1_preprocess.html" rel="next">
-<link href="./index.html" rel="prev">
+<link href="./2_basicNeeds.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -115,7 +114,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./0_generateSyntheticData.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./0_generateSyntheticData.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></a></li></ol></nav>
         <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
@@ -148,20 +147,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./0_generateSyntheticData.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="./1_preprocess.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Preprocess Data</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Preprocess Data</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./2_basicNeeds.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Study 1: Gaming and Basic Needs</span></span></a>
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Study 1: Gaming and Basic Needs</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./0_generateSyntheticData.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></span></a>
   </div>
 </li>
     </ul>
@@ -174,30 +173,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#generate-synthetic-data" id="toc-generate-synthetic-data" class="nav-link active" data-scroll-target="#generate-synthetic-data"><span class="header-section-number">3</span> Generate Synthetic Data</a></li>
-  <li><a href="#preamble" id="toc-preamble" class="nav-link" data-scroll-target="#preamble"><span class="header-section-number">4</span> Preamble</a></li>
-  <li><a href="#simulate-participant-sample" id="toc-simulate-participant-sample" class="nav-link" data-scroll-target="#simulate-participant-sample"><span class="header-section-number">5</span> Simulate participant sample</a>
+  <li><a href="#generate-synthetic-data" id="toc-generate-synthetic-data" class="nav-link active" data-scroll-target="#generate-synthetic-data"><span class="header-section-number">5</span> Generate Synthetic Data</a>
   <ul class="collapse">
-  <li><a href="#intake" id="toc-intake" class="nav-link" data-scroll-target="#intake"><span class="header-section-number">5.1</span> Intake</a></li>
-  <li><a href="#play-history" id="toc-play-history" class="nav-link" data-scroll-target="#play-history"><span class="header-section-number">5.2</span> Play History</a></li>
-  <li><a href="#dropoutattrition" id="toc-dropoutattrition" class="nav-link" data-scroll-target="#dropoutattrition"><span class="header-section-number">5.3</span> Dropout/attrition</a></li>
-  </ul></li>
-  <li><a href="#simulate-telemetry" id="toc-simulate-telemetry" class="nav-link" data-scroll-target="#simulate-telemetry"><span class="header-section-number">6</span> Simulate Telemetry</a>
+  <li><a href="#preamble" id="toc-preamble" class="nav-link" data-scroll-target="#preamble"><span class="header-section-number">5.1</span> Preamble</a></li>
+  <li><a href="#simulate-participant-sample" id="toc-simulate-participant-sample" class="nav-link" data-scroll-target="#simulate-participant-sample"><span class="header-section-number">5.2</span> Simulate participant sample</a>
   <ul class="collapse">
-  <li><a href="#genres" id="toc-genres" class="nav-link" data-scroll-target="#genres"><span class="header-section-number">6.1</span> Genres</a></li>
-  <li><a href="#nintendo" id="toc-nintendo" class="nav-link" data-scroll-target="#nintendo"><span class="header-section-number">6.2</span> Nintendo</a></li>
-  <li><a href="#xbox" id="toc-xbox" class="nav-link" data-scroll-target="#xbox"><span class="header-section-number">6.3</span> Xbox</a></li>
-  <li><a href="#steam" id="toc-steam" class="nav-link" data-scroll-target="#steam"><span class="header-section-number">6.4</span> Steam</a></li>
-  <li><a href="#ios" id="toc-ios" class="nav-link" data-scroll-target="#ios"><span class="header-section-number">6.5</span> iOS</a></li>
-  <li><a href="#android" id="toc-android" class="nav-link" data-scroll-target="#android"><span class="header-section-number">6.6</span> Android</a></li>
+  <li><a href="#intake" id="toc-intake" class="nav-link" data-scroll-target="#intake"><span class="header-section-number">5.2.1</span> Intake</a></li>
+  <li><a href="#play-history" id="toc-play-history" class="nav-link" data-scroll-target="#play-history"><span class="header-section-number">5.2.2</span> Play History</a></li>
+  <li><a href="#dropoutattrition" id="toc-dropoutattrition" class="nav-link" data-scroll-target="#dropoutattrition"><span class="header-section-number">5.2.3</span> Dropout/attrition</a></li>
   </ul></li>
-  <li><a href="#simulate-self-report-data-diary-and-panel" id="toc-simulate-self-report-data-diary-and-panel" class="nav-link" data-scroll-target="#simulate-self-report-data-diary-and-panel"><span class="header-section-number">7</span> Simulate self-report data (diary and panel)</a>
+  <li><a href="#simulate-telemetry" id="toc-simulate-telemetry" class="nav-link" data-scroll-target="#simulate-telemetry"><span class="header-section-number">5.3</span> Simulate Telemetry</a>
   <ul class="collapse">
-  <li><a href="#panel" id="toc-panel" class="nav-link" data-scroll-target="#panel"><span class="header-section-number">7.1</span> Panel</a></li>
-  <li><a href="#diary" id="toc-diary" class="nav-link" data-scroll-target="#diary"><span class="header-section-number">7.2</span> Diary</a></li>
+  <li><a href="#genres" id="toc-genres" class="nav-link" data-scroll-target="#genres"><span class="header-section-number">5.3.1</span> Genres</a></li>
+  <li><a href="#nintendo" id="toc-nintendo" class="nav-link" data-scroll-target="#nintendo"><span class="header-section-number">5.3.2</span> Nintendo</a></li>
+  <li><a href="#xbox" id="toc-xbox" class="nav-link" data-scroll-target="#xbox"><span class="header-section-number">5.3.3</span> Xbox</a></li>
+  <li><a href="#steam" id="toc-steam" class="nav-link" data-scroll-target="#steam"><span class="header-section-number">5.3.4</span> Steam</a></li>
+  <li><a href="#ios" id="toc-ios" class="nav-link" data-scroll-target="#ios"><span class="header-section-number">5.3.5</span> iOS</a></li>
+  <li><a href="#android" id="toc-android" class="nav-link" data-scroll-target="#android"><span class="header-section-number">5.3.6</span> Android</a></li>
   </ul></li>
-  <li><a href="#generate-codebook" id="toc-generate-codebook" class="nav-link" data-scroll-target="#generate-codebook"><span class="header-section-number">8</span> Generate Codebook</a></li>
-  <li><a href="#save-data" id="toc-save-data" class="nav-link" data-scroll-target="#save-data"><span class="header-section-number">9</span> Save data</a></li>
+  <li><a href="#simulate-self-report-data-diary-and-panel" id="toc-simulate-self-report-data-diary-and-panel" class="nav-link" data-scroll-target="#simulate-self-report-data-diary-and-panel"><span class="header-section-number">5.4</span> Simulate self-report data (diary and panel)</a>
+  <ul class="collapse">
+  <li><a href="#panel" id="toc-panel" class="nav-link" data-scroll-target="#panel"><span class="header-section-number">5.4.1</span> Panel</a></li>
+  <li><a href="#diary" id="toc-diary" class="nav-link" data-scroll-target="#diary"><span class="header-section-number">5.4.2</span> Diary</a></li>
+  </ul></li>
+  <li><a href="#generate-codebook" id="toc-generate-codebook" class="nav-link" data-scroll-target="#generate-codebook"><span class="header-section-number">5.5</span> Generate Codebook</a></li>
+  <li><a href="#save-data" id="toc-save-data" class="nav-link" data-scroll-target="#save-data"><span class="header-section-number">5.6</span> Save data</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -206,7 +207,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></h1>
+<h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generate Synthetic Data</span></h1>
 </div>
 
 
@@ -237,11 +238,10 @@ Note
 <p>For external users, most relevant will be the synthetic data files and codebook that this file generates. We’ve nonetheless included this simulation code in case readers want to understand how the synthetic data was created.</p>
 </div>
 </div>
-<section id="generate-synthetic-data" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Generate Synthetic Data</h1>
-</section>
-<section id="preamble" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> Preamble</h1>
+<section id="generate-synthetic-data" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Generate Synthetic Data</h1>
+<section id="preamble" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="preamble"><span class="header-section-number">5.1</span> Preamble</h2>
 <p>First, set options and load some libraries we’ll need.</p>
 <div class="cell">
 <details class="code-fold">
@@ -388,8 +388,8 @@ Note
 </details>
 </div>
 </section>
-<section id="simulate-participant-sample" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> Simulate participant sample</h1>
+<section id="simulate-participant-sample" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="simulate-participant-sample"><span class="header-section-number">5.2</span> Simulate participant sample</h2>
 <p>First we simulate the sample as taken - their age, gender, region, and gameplay tendencies. We bootstrap from existing Nintendo pilot data, but add some demographic details that are not present in the Prolific data. This takes the format of the intake questionnaire on Qualtrics, and therefore needs to import that survey.</p>
 <p>We also simulate the gameplay behavior of participants - what platforms do they play on, and how frequently do they play on each of them.</p>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -405,8 +405,8 @@ Note
 <p>Participant platforms don’t match the responses in the <code>platforms_X</code> intake items, as these are generated from Qualtrics test responses. We have a better idea of the platform distribution so we simulate that ourselves.</p>
 </div>
 </div>
-<section id="intake" class="level2" data-number="5.1">
-<h2 data-number="5.1" class="anchored" data-anchor-id="intake"><span class="header-section-number">5.1</span> Intake</h2>
+<section id="intake" class="level3" data-number="5.2.1">
+<h3 data-number="5.2.1" class="anchored" data-anchor-id="intake"><span class="header-section-number">5.2.1</span> Intake</h3>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -472,8 +472,8 @@ Note
 </details>
 </div>
 </section>
-<section id="play-history" class="level2" data-number="5.2">
-<h2 data-number="5.2" class="anchored" data-anchor-id="play-history"><span class="header-section-number">5.2</span> Play History</h2>
+<section id="play-history" class="level3" data-number="5.2.2">
+<h3 data-number="5.2.2" class="anchored" data-anchor-id="play-history"><span class="header-section-number">5.2.2</span> Play History</h3>
 <p>Next, we want to simulate some play behavior. We assume that each player has a fixed likelihood of playing on each platform they use on a given day. If they do play, we assume they will play between 1 and 3 sessions (or in the case of Steam, that they have logged playtime in 1-5 1-hour periods of the day). We simulate those values here.</p>
 <div class="cell">
 <details class="code-fold">
@@ -500,8 +500,8 @@ Note
 </details>
 </div>
 </section>
-<section id="dropoutattrition" class="level2" data-number="5.3">
-<h2 data-number="5.3" class="anchored" data-anchor-id="dropoutattrition"><span class="header-section-number">5.3</span> Dropout/attrition</h2>
+<section id="dropoutattrition" class="level3" data-number="5.2.3">
+<h3 data-number="5.2.3" class="anchored" data-anchor-id="dropoutattrition"><span class="header-section-number">5.2.3</span> Dropout/attrition</h3>
 <p>Here, we simulate the properties of participant dropout. We assume that participants have a base rate of missingness at each wave (5% for diary, 10% for panel), and a separate chance each day of dropping out for the rest of the study (1% for the 84 days of the study). We simulate the missingness and dropout for each participant for each day of the study, and use this information later to remove rows from the completed panel and diary surveys.</p>
 <div class="cell">
 <details class="code-fold">
@@ -536,11 +536,11 @@ Note
 </div>
 </section>
 </section>
-<section id="simulate-telemetry" class="level1" data-number="6">
-<h1 data-number="6"><span class="header-section-number">6</span> Simulate Telemetry</h1>
+<section id="simulate-telemetry" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="simulate-telemetry"><span class="header-section-number">5.3</span> Simulate Telemetry</h2>
 <p>First we quickly generate a list of unique genres, which we will later randomly assign to games. In the real study, we will match games on all platforms to these same categories using the IGDB database.</p>
-<section id="genres" class="level2" data-number="6.1">
-<h2 data-number="6.1" class="anchored" data-anchor-id="genres"><span class="header-section-number">6.1</span> Genres</h2>
+<section id="genres" class="level3" data-number="5.3.1">
+<h3 data-number="5.3.1" class="anchored" data-anchor-id="genres"><span class="header-section-number">5.3.1</span> Genres</h3>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -554,8 +554,8 @@ Note
 </details>
 </div>
 </section>
-<section id="nintendo" class="level2" data-number="6.2">
-<h2 data-number="6.2" class="anchored" data-anchor-id="nintendo"><span class="header-section-number">6.2</span> Nintendo</h2>
+<section id="nintendo" class="level3" data-number="5.3.2">
+<h3 data-number="5.3.2" class="anchored" data-anchor-id="nintendo"><span class="header-section-number">5.3.2</span> Nintendo</h3>
 <p>Next, we simulate the session-level data based on the play behavior, starting with Nintendo. For each day and session that a participant has played, we bootstrap the title, start time, and duration, from the existing data. For example, Participant 14 played Switch on Day 11, and their play was simulated to include 2 unique sessions. Games, session start times, and session durations are all drawn randomly from the real Nintendo data.</p>
 <div class="cell">
 <details class="code-fold">
@@ -590,8 +590,8 @@ $ platform     &lt;chr&gt; "Nintendo", "Nintendo", "Nintendo", "Nintendo", "Nint
 </div>
 </div>
 </section>
-<section id="xbox" class="level2" data-number="6.3">
-<h2 data-number="6.3" class="anchored" data-anchor-id="xbox"><span class="header-section-number">6.3</span> Xbox</h2>
+<section id="xbox" class="level3" data-number="5.3.3">
+<h3 data-number="5.3.3" class="anchored" data-anchor-id="xbox"><span class="header-section-number">5.3.3</span> Xbox</h3>
 <p>We take a similar approach for the Xbox data. However, instead of bootstrapping, we instead randomly pull from a list of an external list of Xbox games. We pull session start times from the Nintendo dataset as these are probably an equally good representation, but simulate a new set of durations as the average Xbox session is likely longer than Nintendo.</p>
 <div class="cell">
 <details class="code-fold">
@@ -628,8 +628,8 @@ $ platform     &lt;chr&gt; "Xbox", "Xbox", "Xbox", "Xbox", "Xbox", "Xbox", "Xbox
 </div>
 </div>
 </section>
-<section id="steam" class="level2" data-number="6.4">
-<h2 data-number="6.4" class="anchored" data-anchor-id="steam"><span class="header-section-number">6.4</span> Steam</h2>
+<section id="steam" class="level3" data-number="5.3.4">
+<h3 data-number="5.3.4" class="anchored" data-anchor-id="steam"><span class="header-section-number">5.3.4</span> Steam</h3>
 <p>Next, we move to Steam data. Here we use an existing sample of Steam data as output by Gameplay.Science (hosted on OneDrive, path specified in <code>.Renviron</code>).</p>
 <p>In contrast to Xbox and Nintendo data, Steam data is not session-level; rather, it is a total amount of time spent playing each game during the previous hour. We simulate this by looking if the person played that day, simulating a random number of hours between 1-5 that they may have played, and then filling in an amount of time for each hour of play.</p>
 <p>We also randomly assign genres to each game, as we did for Nintendo and Xbox.</p>
@@ -674,8 +674,8 @@ $ platform &lt;chr&gt; "Steam", "Steam", "Steam", "Steam", "Steam", "Steam", "St
 </div>
 </div>
 </section>
-<section id="ios" class="level2" data-number="6.5">
-<h2 data-number="6.5" class="anchored" data-anchor-id="ios"><span class="header-section-number">6.5</span> iOS</h2>
+<section id="ios" class="level3" data-number="5.3.5">
+<h3 data-number="5.3.5" class="anchored" data-anchor-id="ios"><span class="header-section-number">5.3.5</span> iOS</h3>
 <p>iOS data consists of weekly screen time data for the below categories (pre-defined by Apple). We simulate the value of each of these categories for each participant-week using a zero-inflated gamma distribution, then add dropout as before.</p>
 <div class="cell">
 <details class="code-fold">
@@ -705,13 +705,13 @@ $ platform &lt;chr&gt; "Steam", "Steam", "Steam", "Steam", "Steam", "Steam", "St
 <span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
 <span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pid, week, date, missing, dropout, <span class="fu">everything</span>()) <span class="sc">|&gt;</span></span>
 <span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="sc">-</span><span class="fu">c</span>(pid, week, missing, dropout), <span class="sc">~</span> <span class="fu">if_else</span>(missing <span class="sc">|</span> dropout, <span class="cn">NA</span>, .))) <span class="sc">|&gt;</span></span>
-<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">as.integer</span>(pid), week)</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">as.integer</span>(pid), week) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">platform =</span> <span class="st">"iOS"</span>)</span>
 <span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(syniOS)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 16,836
-Columns: 18
+Columns: 19
 $ pid                      &lt;fct&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, …
 $ week                     &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, …
 $ date                     &lt;date&gt; 2024-05-01, 2024-05-08, 2024-05-15, 2024-05-…
@@ -729,12 +729,13 @@ $ Education                &lt;dbl&gt; 3.5425213, 1.0298568, 4.2429778, 1.205496
 $ `Health &amp; Fitness`       &lt;dbl&gt; 4.7835503, 2.4794736, 0.0000000, 0.0000000, 1…
 $ `Shopping &amp; Food`        &lt;dbl&gt; 0.0000000, 0.0000000, 5.0112091, 0.0000000, 2…
 $ Utilities                &lt;dbl&gt; 2.8956759, 0.0000000, 0.0000000, 1.1620841, 0…
-$ totalScreentime          &lt;dbl&gt; 34.80184, 24.57324, 24.18872, 23.53294, 17.75…</code></pre>
+$ totalScreentime          &lt;dbl&gt; 34.80184, 24.57324, 24.18872, 23.53294, 17.75…
+$ platform                 &lt;chr&gt; "iOS", "iOS", "iOS", "iOS", "iOS", "iOS", "iO…</code></pre>
 </div>
 </div>
 </section>
-<section id="android" class="level2" data-number="6.6">
-<h2 data-number="6.6" class="anchored" data-anchor-id="android"><span class="header-section-number">6.6</span> Android</h2>
+<section id="android" class="level3" data-number="5.3.6">
+<h3 data-number="5.3.6" class="anchored" data-anchor-id="android"><span class="header-section-number">5.3.6</span> Android</h3>
 <p>Last, we simulate android data, bootstrapping from a sample ActivityWatch output (hosted on OneDrive, path specified in <code>.Renviron</code>).</p>
 <div class="cell">
 <details class="code-fold">
@@ -765,13 +766,13 @@ $ totalScreentime          &lt;dbl&gt; 34.80184, 24.57324, 24.18872, 23.53294, 1
 <span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(app) <span class="sc">|&gt;</span></span>
 <span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">category =</span> <span class="fu">sample</span>(appCategories, <span class="dv">1</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
-<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">as.integer</span>(pid), day, sessionStart)</span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">as.integer</span>(pid), day, sessionStart) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">platform =</span> <span class="st">"Android"</span>)</span>
 <span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(synAndroid)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 1,001,307
-Columns: 9
+Columns: 10
 $ pid                 &lt;fct&gt; 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,…
 $ day                 &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
 $ numDailyAppSessions &lt;dbl&gt; 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26…
@@ -780,17 +781,18 @@ $ session             &lt;int&gt; 7, 6, 15, 26, 17, 1, 23, 3, 21, 13, 20, 8, 9, 
 $ app                 &lt;chr&gt; "Kiwi Browser", "Samsung Internet", "Spotify", "Tr…
 $ sessionStart        &lt;time&gt; 06:25:37.173, 07:02:26.188, 08:01:16.571, 08:06:0…
 $ duration            &lt;dbl&gt; 0.085, 1.168, 6.528, 22.051, 27.117, 1.377, 4.638,…
-$ category            &lt;chr&gt; "Utilities", "Entertainment", "Travel", "Social", …</code></pre>
+$ category            &lt;chr&gt; "Utilities", "Entertainment", "Travel", "Social", …
+$ platform            &lt;chr&gt; "Android", "Android", "Android", "Android", "Andro…</code></pre>
 </div>
 </div>
 </section>
 </section>
-<section id="simulate-self-report-data-diary-and-panel" class="level1" data-number="7">
-<h1 data-number="7"><span class="header-section-number">7</span> Simulate self-report data (diary and panel)</h1>
+<section id="simulate-self-report-data-diary-and-panel" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="simulate-self-report-data-diary-and-panel"><span class="header-section-number">5.4</span> Simulate self-report data (diary and panel)</h2>
 <p>We now move to the self-report data. For both surveys, the simplest option is to just use Qualtrics’ “generate test response” feature, then pull that data using the Qualtrics API, so that the simulated data accurately mirrors the structure of the data we will later have (if not the distributional properties).</p>
 <p>We’ll want to add missingness and dropout to both the panel and diary data, which we do by adding a base chance of missingness at every wave, alongside a separate chance at each wave that the participant will drop out for the rest of the study. See above for details.</p>
-<section id="panel" class="level2" data-number="7.1">
-<h2 data-number="7.1" class="anchored" data-anchor-id="panel"><span class="header-section-number">7.1</span> Panel</h2>
+<section id="panel" class="level3" data-number="5.4.1">
+<h3 data-number="5.4.1" class="anchored" data-anchor-id="panel"><span class="header-section-number">5.4.1</span> Panel</h3>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -815,7 +817,21 @@ $ category            &lt;chr&gt; "Utilities", "Entertainment", "Travel", "Socia
 <span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># remove data for all missing diary waves</span></span>
 <span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="sc">-</span><span class="fu">c</span>(pid, wave, missingPanel), <span class="sc">~</span> <span class="fu">if_else</span>(missingPanel, <span class="cn">NA</span>, .))) <span class="sc">|&gt;</span></span>
 <span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">as.numeric</span>(pid), wave) <span class="sc">|&gt;</span></span>
-<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">copy_labels</span>(datPanel)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">copy_labels</span>(datPanel)</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a><span class="co"># added by Tamas</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Special transformation needs to be done to `psqi_4#1_1_1` and `psqi_4#1_1_2` columns to move values in normal range.</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate the minimum and maximum values of the column</span></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>min_val <span class="ot">&lt;-</span> <span class="fu">min</span>(synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_1</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>max_val <span class="ot">&lt;-</span> <span class="fu">max</span>(synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_1</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Rescale the values to be between 0 and 12</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_1</span><span class="st">`</span> <span class="ot">&lt;-</span> (synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_1</span><span class="st">`</span> <span class="sc">-</span> min_val) <span class="sc">/</span> (max_val <span class="sc">-</span> min_val) <span class="sc">*</span> <span class="dv">12</span></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate the minimum and maximum values of the column</span></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>min_val <span class="ot">&lt;-</span> <span class="fu">min</span>(synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_2</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>max_val <span class="ot">&lt;-</span> <span class="fu">max</span>(synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_2</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Rescale the values to be between 0 and 12</span></span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_2</span><span class="st">`</span> <span class="ot">&lt;-</span> (synPanel<span class="sc">$</span><span class="st">`</span><span class="at">psqi_4#1_1_2</span><span class="st">`</span> <span class="sc">-</span> min_val) <span class="sc">/</span> (max_val <span class="sc">-</span> min_val) <span class="sc">*</span> <span class="dv">60</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <details>
@@ -840,19 +856,19 @@ $ gdt_3                   &lt;chr&gt; "Never", NA, NA, NA, NA, NA, "Often", NA, 
 $ gdt_4                   &lt;chr&gt; "Often", NA, NA, NA, NA, NA, "Often", NA, NA, …
 $ mctq_1                  &lt;int&gt; 2, NA, NA, NA, NA, NA, 2, NA, NA, NA, NA, NA, …
 $ mctq_2_1                &lt;int&gt; 6, NA, NA, NA, NA, NA, 2, NA, NA, NA, NA, NA, …
-$ mctq_3_1                &lt;chr&gt; "15:59", NA, NA, NA, NA, NA, "10:03", NA, NA, …
+$ mctq_3_1                &lt;chr&gt; "07:59", NA, NA, NA, NA, NA, "02:03", NA, NA, …
 $ mctq_3_2                &lt;chr&gt; "Enim felis curabitur? Molestie eu sagittis ne…
-$ mctq_3_3                &lt;chr&gt; "00:27", NA, NA, NA, NA, NA, "17:41", NA, NA, …
+$ mctq_3_3                &lt;chr&gt; "16:28", NA, NA, NA, NA, NA, "09:41", NA, NA, …
 $ mctq_3_4                &lt;dbl&gt; 39.20008, NA, NA, NA, NA, NA, 44.62950, NA, NA…
-$ mctq_3_5                &lt;chr&gt; "00:13", NA, NA, NA, NA, NA, "22:14", NA, NA, …
+$ mctq_3_5                &lt;chr&gt; "16:13", NA, NA, NA, NA, NA, "14:14", NA, NA, …
 $ mctq_3_6                &lt;dbl&gt; 5.796318, NA, NA, NA, NA, NA, 47.058190, NA, N…
 $ mctq_4_1                &lt;chr&gt; "No", NA, NA, NA, NA, NA, "Yes", NA, NA, NA, N…
 $ mctq_5_1                &lt;chr&gt; "No", NA, NA, NA, NA, NA, "No", NA, NA, NA, NA…
-$ mctq_6_1                &lt;chr&gt; "20:48", NA, NA, NA, NA, NA, "04:16", NA, NA, …
+$ mctq_6_1                &lt;chr&gt; "12:49", NA, NA, NA, NA, NA, "20:16", NA, NA, …
 $ mctq_6_2                &lt;chr&gt; "Sed eleifend proin rutrum. Orci culpa at luct…
-$ mctq_6_3                &lt;chr&gt; "14:11", NA, NA, NA, NA, NA, "11:33", NA, NA, …
+$ mctq_6_3                &lt;chr&gt; "06:12", NA, NA, NA, NA, NA, "03:33", NA, NA, …
 $ mctq_6_4                &lt;dbl&gt; 13.251418, NA, NA, NA, NA, NA, 56.047642, NA, …
-$ mctq_6_5                &lt;chr&gt; "12:16", NA, NA, NA, NA, NA, "08:19", NA, NA, …
+$ mctq_6_5                &lt;chr&gt; "04:17", NA, NA, NA, NA, NA, "00:19", NA, NA, …
 $ mctq_6_6                &lt;dbl&gt; 6.658175, NA, NA, NA, NA, NA, 37.259872, NA, N…
 $ mctq_7_1                &lt;chr&gt; "Yes", NA, NA, NA, NA, NA, "No", NA, NA, NA, N…
 $ mctq_7_2                &lt;chr&gt; "Yes", NA, NA, NA, NA, NA, "Yes", NA, NA, NA, …
@@ -865,8 +881,8 @@ $ psqi_2                  &lt;dbl&gt; NA, 546670535, NA, 1772158820, NA, NA, NA,
 $ `psqi_3#1_1_1`          &lt;dbl&gt; NA, 1784034938, NA, 1489034961, NA, NA, NA, 20…
 $ `psqi_3#1_1_2`          &lt;dbl&gt; NA, 1786659833, NA, 924252618, NA, NA, NA, 166…
 $ `psqi_3#2_1`            &lt;chr&gt; NA, "PM", NA, "AM", NA, NA, NA, "AM", NA, "PM"…
-$ `psqi_4#1_1_1`          &lt;dbl&gt; NA, 1359004739, NA, 733074959, NA, NA, NA, 237…
-$ `psqi_4#1_1_2`          &lt;dbl&gt; NA, 1502688050, NA, 1575807686, NA, NA, NA, 18…
+$ `psqi_4#1_1_1`          &lt;dbl&gt; NA, 7.591414, NA, 4.088766, NA, NA, NA, 1.3164…
+$ `psqi_4#1_1_2`          &lt;dbl&gt; NA, 41.987320, NA, 44.030454, NA, NA, NA, 52.9…
 $ psqi_5_1                &lt;chr&gt; NA, "Once or twice a week", NA, "Less than onc…
 $ psqi_5_2                &lt;chr&gt; NA, "Less than once a week", NA, "Three or mor…
 $ psqi_5_3                &lt;chr&gt; NA, "Once or twice a week", NA, "Once or twice…
@@ -996,8 +1012,8 @@ $ displacement_5          &lt;chr&gt; "Greatly supported", "No impact", "Moderat
 </div>
 </details>
 </section>
-<section id="diary" class="level2" data-number="7.2">
-<h2 data-number="7.2" class="anchored" data-anchor-id="diary"><span class="header-section-number">7.2</span> Diary</h2>
+<section id="diary" class="level3" data-number="5.4.2">
+<h3 data-number="5.4.2" class="anchored" data-anchor-id="diary"><span class="header-section-number">5.4.2</span> Diary</h3>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
@@ -1110,8 +1126,8 @@ $ howStress_other      &lt;ord&gt; Very, Not at all, Not at all, Very, Very, Not
 </details>
 </section>
 </section>
-<section id="generate-codebook" class="level1" data-number="8">
-<h1 data-number="8"><span class="header-section-number">8</span> Generate Codebook</h1>
+<section id="generate-codebook" class="level2" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="generate-codebook"><span class="header-section-number">5.5</span> Generate Codebook</h2>
 <p>Generate <code>codebook.xlsx</code>.</p>
 <div class="cell">
 <details class="code-fold">
@@ -1342,24 +1358,38 @@ $ howStress_other      &lt;ord&gt; Very, Not at all, Not at all, Very, Very, Not
 </details>
 </div>
 </section>
-<section id="save-data" class="level1" data-number="9">
-<h1 data-number="9"><span class="header-section-number">9</span> Save data</h1>
+<section id="save-data" class="level2" data-number="5.6">
+<h2 data-number="5.6" class="anchored" data-anchor-id="save-data"><span class="header-section-number">5.6</span> Save data</h2>
 <p>Save the data to <code>data-synthetic</code>, for use in devising analysis scripts for e.g.&nbsp;the registered reports to come.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Show the code</summary>
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synIntake, <span class="st">"data-synthetic/synIntake.csv"</span>)</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synDiary, <span class="st">"data-synthetic/synDiary.csv"</span>)</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synPanel, <span class="st">"data-synthetic/synPanel.csv"</span>)</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synXbox, <span class="st">"data-synthetic/synXbox.csv"</span>)</span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synNintendo, <span class="st">"data-synthetic/synNintendo.csv"</span>)</span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synAndroid, <span class="st">"data-synthetic/synAndroid"</span>)</span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synSteam, <span class="st">"data-synthetic/synSteam.csv"</span>)</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(syniOS, <span class="st">"data-synthetic/syniOS.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Export as CSV</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synIntake, <span class="st">"data-synthetic/synIntake.csv"</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synDiary, <span class="st">"data-synthetic/synDiary.csv"</span>)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synPanel, <span class="st">"data-synthetic/synPanel.csv"</span>)</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synXbox, <span class="st">"data-synthetic/synXbox.csv"</span>)</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synNintendo, <span class="st">"data-synthetic/synNintendo.csv"</span>)</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synAndroid, <span class="st">"data-synthetic/synAndroid.csv"</span>)</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synSteam, <span class="st">"data-synthetic/synSteam.csv"</span>)</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(syniOS, <span class="st">"data-synthetic/syniOS.csv"</span>)</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Export as RDS</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synIntake, <span class="st">"data-synthetic/synIntake.rds"</span>)</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synDiary, <span class="st">"data-synthetic/synDiary.rds"</span>)</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synPanel, <span class="st">"data-synthetic/synPanel.rds"</span>)</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synXbox, <span class="st">"data-synthetic/synXbox.rds"</span>)</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synNintendo, <span class="st">"data-synthetic/synNintendo.rds"</span>)</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synAndroid, <span class="st">"data-synthetic/synAndroid.rds"</span>)</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(synSteam, <span class="st">"data-synthetic/synSteam.rds"</span>)</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(syniOS, <span class="st">"data-synthetic/syniOS.rds"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -1752,14 +1782,11 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </script>
 <nav class="page-navigation column-body">
   <div class="nav-page nav-page-previous">
-      <a href="./index.html" class="pagination-link  aria-label=" &lt;span="" between="" health="" and="" logged="" video="" game="" play="" across="" platforms&lt;="" span&gt;"="">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Relationships Between Health and Logged Video Game Play Across Platforms</span></span>
+      <a href="./2_basicNeeds.html" class="pagination-link  aria-label=" &lt;span="" 1:="" gaming="" and="" basic="" needs&lt;="" span&gt;"="">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Study 1: Gaming and Basic Needs</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./1_preprocess.html" class="pagination-link" aria-label="<span class='chapter-number'>3</span>&nbsp; <span class='chapter-title'>Preprocess Data</span>">
-        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Preprocess Data</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
   </div>
 </nav>
 </div> <!-- /content -->

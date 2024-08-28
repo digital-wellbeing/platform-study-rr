@@ -13,7 +13,7 @@ format:
 bibliography: references.bib
 ---
 
-# Study 1: Gaming and Basic Needs
+## Study 1: Gaming and Basic Needs
 
 ```{r}
 #| label: load-libraries
@@ -51,6 +51,9 @@ dat <- diary |>
   )
 ```
 
+TODO: 
+- select variables for imputation
+
 ```{r}
 #| label: multiple-imputation
 #| eval: false
@@ -67,7 +70,7 @@ diaryWide <- diary |>
 quickpred(diaryWide)
 
 mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, seed = 8675309)
-mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309) # alternatively, try to parallelize
+futuremice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309) # alternatively, try to parallelize
 ```
 
 
