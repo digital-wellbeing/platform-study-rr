@@ -251,7 +251,7 @@ Note
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(<span class="st">"pacman"</span>)) <span class="fu">install.packages</span>(<span class="st">"pacman"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pacman)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">p_load</span>(tidyverse, mctq)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">p_load</span>(tidyverse, mctq, data.table)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>
@@ -261,15 +261,17 @@ Note
 <details class="code-fold">
 <summary>Show the code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>synDiary <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synDiary.csv"</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>synPanel <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synPanel.csv"</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>synIntake <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synIntake.csv"</span>)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>nin <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synNintendo.csv"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionEnd =</span> sessionStart <span class="sc">+</span> <span class="fu">minutes</span>(<span class="fu">round</span>(duration)), <span class="at">.after =</span> sessionStart)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>xbox <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synXbox.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># for unknown reasons, read_csv imports some columns incorrectly, so we use data.table::fread</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>synPanel <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"data-synthetic/synPanel.csv"</span>) </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>synIntake <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synIntake.csv"</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>nin <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synNintendo.csv"</span>) <span class="sc">|&gt;</span></span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionEnd =</span> sessionStart <span class="sc">+</span> <span class="fu">minutes</span>(<span class="fu">round</span>(duration)), <span class="at">.after =</span> sessionStart)</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>steam <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synSteam.csv"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionStart =</span> date <span class="sc">+</span> <span class="fu">hours</span>(hour))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>xbox <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synXbox.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionEnd =</span> sessionStart <span class="sc">+</span> <span class="fu">minutes</span>(<span class="fu">round</span>(duration)), <span class="at">.after =</span> sessionStart)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>steam <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synSteam.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionStart =</span> date <span class="sc">+</span> <span class="fu">hours</span>(hour))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>
