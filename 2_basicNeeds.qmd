@@ -118,7 +118,7 @@ h2mod <- glmmTMB(
 )
 
 plot_predictions(h2mod, condition = "globalNF_cw", vcov = TRUE)
-plot_predictions(h2mod, condition = "gamesNS_cw", vcov = TRUE)
+plot_predictions(h2mod, condition = "gameNS_cw", vcov = TRUE)
 ```
 
 

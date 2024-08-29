@@ -6,10 +6,10 @@ output: html_document
 ::: {.callout-note}
 This file is intended for internal use---compilation requires access to the original data files and the Qualtrics API.
 
-For external users, most relevant will be the synthetic data files and codebook that this file generates. We've nonetheless included this simulation code in case readers want to understand how the synthetic data was created. 
-:::
+For external users, the most relevant will be the synthetic data files and codebook that this file generates. We've nonetheless included this simulation code in case readers want to understand how the synthetic data was created. 
 
-# Generate Synthetic Data
+To render the remaining files without the generation of simulated data, run `quarto render --profile external` from the root directory.
+:::
 
 ## Preamble
 
@@ -829,14 +829,4 @@ write_csv(synNintendo, "data-synthetic/synNintendo.csv")
 write_csv(synAndroid, "data-synthetic/synAndroid.csv")
 write_csv(synSteam, "data-synthetic/synSteam.csv")
 write_csv(syniOS, "data-synthetic/syniOS.csv")
-
-# Export as RDS
-saveRDS(synIntake, "data-synthetic/synIntake.rds")
-saveRDS(synDiary, "data-synthetic/synDiary.rds")
-saveRDS(synPanel, "data-synthetic/synPanel.rds")
-saveRDS(synXbox, "data-synthetic/synXbox.rds")
-saveRDS(synNintendo, "data-synthetic/synNintendo.rds")
-saveRDS(synAndroid, "data-synthetic/synAndroid.rds")
-saveRDS(synSteam, "data-synthetic/synSteam.rds")
-saveRDS(syniOS, "data-synthetic/syniOS.rds")
 ```

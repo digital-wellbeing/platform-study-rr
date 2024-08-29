@@ -8,7 +8,7 @@ project:
     - 3_sleep.qmd
   output-dir: docs
 book:
-  title: "Relationships Between Health and Logged Video Game Play Across Platforms"
+  title: "Psychological Wellbeing, Sleep, and Video Gaming: Analyses of Comprehensive Digital Traces"
   author: "Digital Wellbeing Lab"
   chapters:
     - index.qmd

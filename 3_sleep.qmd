@@ -13,7 +13,7 @@ format:
 bibliography: references.bib
 ---
 
-# Study 2: Gaming and Sleep 
+TODO: document this all
 
 ```{r}
 #| label: load-libraries
@@ -33,24 +33,14 @@ studyStartDate <- as_datetime("2024-05-01 00:00:00")
 # don't use read_csv for the synPanelClean! no idea why but it guesses column
 # type wrong, leading to a lot of NA imports
 
-data.panel <- data.table::fread("data-synthetic/synPanel.csv", na.strings = c("", "NA"))
-read_csv("data-synthetic/synPanel.csv", 
-                       name_repair = "universal",
-         num_threads = 1,
-         skip_empty_rows = TRUE,
-         lazy = TRUE, 
-         trim_ws = T) |> 
-  select(psqi_6, starts_with("psqi"))
-
 data.panel <- fread("data-synthetic/synPanelClean.csv") |> # requires that the preprocessing script has been run
   left_join(read_csv("data-synthetic/synIntakeClean.csv"), by = "pid") |> 
-  select(pid, wave, psqi_6, starts_with(c("mctq", "eps", "psqi")), total_hours_sleep, wemwbs, 
+  select(pid, wave, region, psqi_6, starts_with(c("mctq", "eps", "psqi")), total_hours_sleep, wemwbs, 
          age_scaled, bmi_scaled, SES_index_scaled, msf_sc_numeric, gender) |> 
   mutate(
     psqi_6_ord = factor(psqi_6, ordered = TRUE),
     pid = as.character(pid)
   )
-
 
 data.nin <- readRDS("data-synthetic/synNintendo.rds")
 data.xbox <- readRDS("data-synthetic/synXbox.rds")
@@ -105,28 +95,28 @@ data.gaming <- bind_rows(data.xbox, data.steam, data.nin) |>
 
 # group gaming by PID, wave and latenight and calculate daily average minutes_played
 gamingMonthly <- data.gaming |> 
-  group_by(pid, month, latenight, isWeekend) %>%
+  group_by(pid, month, isWeekend) %>%
   summarise(
-    monthly_avg_minutes_played = sum(minutes_played)/28,
+    monthly_avg_minutes_played = sum(latenightMinutes)/28,
   ) |> 
-  left_join(data.panel |> select(-msf_sc_numeric), by = c("pid","month" = "wave")) |> 
+  left_join(data.panel |> select(-msf_sc_numeric) |> filter(wave %in% c(2, 4, 6)), 
+            by = c("pid","month" = "wave")) |> 
   left_join(data.panel |> select(pid, msf_sc_numeric) |> filter(!is.na(msf_sc_numeric)), 
             by = c("pid")) |> # hacky way to make sure chronotype (measured in wave 1 only) doesn't get lost 
-  filter(latenight == 1) |> 
-  filter(monthly_avg_minutes_played  > 0) |> 
-  ungroup() |> 
   mutate(monthly_avg_minutes_played = replace_na(monthly_avg_minutes_played, 0)) |> 
+  ungroup() |>
   arrange(as.integer(pid), month)
 
 # group gaming by PID, wave and latenight and calculate daily average minutes_played
 gamingBiweekly <- data.gaming |> 
-  group_by(pid, wave, latenight, isWeekend) |> 
+  group_by(pid, wave, isWeekend) |> 
   summarise(
-    biweekly_avg_minutes_played = sum(minutes_played)/14,
+    biweekly_avg_minutes_played = sum(latenightMinutes)/14,
   ) |> 
   left_join(data.panel, by = c("pid", "wave")) |> 
-  filter(latenight == 1) |> 
-  ungroup()
+  mutate(biweekly_avg_minutes_played = replace_na(biweekly_avg_minutes_played, 0)) |> 
+  ungroup() |> 
+  arrange(as.integer(pid), wave)
 
 ```
 
@@ -139,7 +129,7 @@ gamingBiweekly <- data.gaming |>
 
 # Fit the model with rescaled covariates
 model.h1a <- clmm(psqi_6_ord ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | pid) +
-                    age_scaled + bmi_scaled + SES_index_scaled + isWeekend,
+                    age_scaled + bmi_scaled + SES_index_scaled + region + isWeekend,
                   data = gamingMonthly)
 
 modelsummary(
@@ -158,7 +148,8 @@ modelsummary(
 
 # Fit the model
 model.h1b <- lmer(total_hours_sleep ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | pid) +
-              age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + isWeekend, data = gamingMonthly )
+                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + region + isWeekend, 
+                  data = gamingMonthly)
 
 # Summarize the model using modelsummary
 modelsummary(
@@ -171,10 +162,12 @@ modelsummary(
 
 ## H1c: Late-night gaming is associated with lower well-being.
 
-```{r h1c}
+```{r}
+#| label: h1c
 
 model.h1c <- lmer(wemwbs ~ biweekly_avg_minutes_played + (1 + biweekly_avg_minutes_played | pid) +
-              age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + isWeekend, data = gamingBiweekly )
+                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + region + isWeekend, 
+                  data = gamingBiweekly)
 
 
 modelsummary(
@@ -188,11 +181,13 @@ modelsummary(
 
 ## H1d: Late-night gaming is associated with higher daytime sleepiness.
 
-```{r h1d}
+```{r}
+#| label: h1d
 
 # Fit the model
 model.h1d <- lmer(epsTotal ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | pid) +
-                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + isWeekend, data = gamingMonthly)
+                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + region + isWeekend, 
+                  data = gamingMonthly)
 # Summarize the model using modelsummary
 
 modelsummary(
@@ -208,11 +203,12 @@ modelsummary(
 
 ## H2a: The negative association between late-night gaming and sleep quality is more pronounced among evening chronotypes.
 
-```{r h2a}
+```{r}
+#| label: h2a
 
 # Fit the model with rescaled covariates
 model.h2a <- clmm(psqi_6_ord ~ monthly_avg_minutes_played * msf_sc_numeric + (1 + monthly_avg_minutes_played | pid) +
-                    age_scaled + bmi_scaled + SES_index_scaled + isWeekend,
+                    age_scaled + bmi_scaled + SES_index_scaled + region + isWeekend,
                   data = gamingMonthly)
 
 modelsummary(
@@ -224,11 +220,12 @@ modelsummary(
 ```
 
 ## H2b: The negative association between late-night gaming and sleep duration is more pronounced among evening chronotypes.
-```{r h2b}
+```{r}
+#| label: h2b
 
 # Fit the model
 model.h2b <- lmer(total_hours_sleep ~ monthly_avg_minutes_played * msf_sc_numeric + (1 + monthly_avg_minutes_played | pid) +
-                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + isWeekend, 
+                    age_scaled + bmi_scaled + SES_index_scaled + region + isWeekend + (1 | gender), 
                   data = gamingMonthly |> filter(!is.na(msf_sc_numeric)))
 
 # Summarize the model using modelsummary
@@ -242,11 +239,12 @@ modelsummary(
 
 ## H2c: The negative association between late-night gaming and well-being is more pronounced among evening chronotypes.
 
-```{r h2c}
+```{r}
+#| label: h2c
 
 # Fit the model
-model.h2c <- lmer(wemwbs ~ biweekly_avg_minutes_played * msf_sc_numeric + (1 + biweekly_avg_minutes_played | pid) +
-                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + isWeekend, 
+model.h2c <- lmer(wemwbs ~ biweekly_avg_minutes_played * msf_sc_numeric + (1 | pid) +
+                    age_scaled + bmi_scaled + SES_index_scaled + region + isWeekend + (1 | gender), 
                   data = gamingBiweekly)
 
 modelsummary(
@@ -259,10 +257,11 @@ modelsummary(
 
 ## H2d: The negative association between late-night gaming and daytime sleepiness is more pronounced among evening chronotypes.
 
-```{r h2d}
+```{r}
+#| label: h2d
 
 model.h2d <- lmer(epsTotal ~ monthly_avg_minutes_played * msf_sc_numeric + (1 + monthly_avg_minutes_played | pid) +
-                    age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + isWeekend, 
+                    age_scaled + bmi_scaled + SES_index_scaled + region + isWeekend + (1 | gender), 
                   data = gamingMonthly)
 
 modelsummary(
