@@ -13,8 +13,6 @@ format:
 bibliography: references.bib
 ---
 
-## Study 1: Gaming and Basic Needs
-
 ```{r}
 #| label: load-libraries
 
@@ -31,7 +29,7 @@ diary <- read_csv("data-synthetic/synDiaryClean.csv") # requires that the prepro
 intake <- read_csv("data-synthetic/synIntake.csv")
 nin <- read_csv("data-synthetic/synNintendo.csv")
 xbox <- read_csv("data-synthetic/synXbox.csv")
-steam <- read_csv("data-synthetic/synSteam.csv")
+steam <- read_csv("data-synthetic/synXbox.csv")
 ```
 
 ```{r}
@@ -51,9 +49,6 @@ dat <- diary |>
   )
 ```
 
-TODO: 
-- select variables for imputation
-
 ```{r}
 #| label: multiple-imputation
 #| eval: false
@@ -70,7 +65,7 @@ diaryWide <- diary |>
 quickpred(diaryWide)
 
 mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, seed = 8675309)
-futuremice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309) # alternatively, try to parallelize
+mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309) # alternatively, try to parallelize
 ```
 
 
@@ -84,10 +79,7 @@ Experiences of gaming feed into and co-constitute experiences of life as a whole
 
 We model this with a multilevel within-between linear regression whereby game-level need satisfaction (within- and between-centered; `gameNS_cw` and `gameNS_cb`) predicts deviation from a person's typical globalNS (`globalNS`, with a random intercept).  
 
-
-::: {.callout-note}
-Something super weird is happening here, with this strong negative relationship between gameNS and globalNS. I suspect this is a data issue, but I'm not sure what's going on.
-:::
+This model, in contrast to the others, has some covariates in it, mostly as a reminder to myself to figure out whether these warrant including or not. 
 
 ```{r}
 #| label: h1-model
@@ -126,7 +118,7 @@ h2mod <- glmmTMB(
 )
 
 plot_predictions(h2mod, condition = "globalNF_cw", vcov = TRUE)
-plot_predictions(h2mod, condition = "gameNS_cw", vcov = TRUE)
+plot_predictions(h2mod, condition = "gamesNS_cw", vcov = TRUE)
 ```
 
 

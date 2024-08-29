@@ -36,6 +36,3 @@ We then analyze these data in the following scripts:
 - For **external use** (non-lab members), run `quarto render --profile external` in the Rstudio terminal to render all of the quarto files except 0_generateSyntheticData.qmd, which requires internal credentials. This command uses the specifications in `_quarto-external.yml` to render the files in the correct order (indicated by their number), and output them to `outputs/`.
 
 - For **internal use**, run `quarto render --profile internal` in the Rstudio terminal to render *all* quarto files. This command uses the specifications in `_quarto-internal.yml` to render the files in the correct order (indicated by their number), and output them to `docs/`. The files in `docs/` are hosted on GitHub pages here: [https://digital-wellbeing.github.io/platform-study-rr/](https://digital-wellbeing.github.io/platform-study-rr/).
-
-
-
