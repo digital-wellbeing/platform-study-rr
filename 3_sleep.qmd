@@ -21,7 +21,7 @@ bibliography: references.bib
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
-p_load(tidyverse, lme4, marginaleffects, glmmTMB, mice, ordinal, modelsummary, lubridate)
+p_load(tidyverse, lme4, marginaleffects, glmmTMB, mice, ordinal, modelsummary, lubridate, data.table)
 
 studyStartDate <- as_datetime("2024-05-01 00:00:00")
 
@@ -32,7 +32,17 @@ studyStartDate <- as_datetime("2024-05-01 00:00:00")
 
 # don't use read_csv for the synPanelClean! no idea why but it guesses column
 # type wrong, leading to a lot of NA imports
-data.panel <- read.csv("data-synthetic/synPanelClean.csv") |> # requires that the preprocessing script has been run
+
+data.panel <- data.table::fread("data-synthetic/synPanel.csv", na.strings = c("", "NA"))
+read_csv("data-synthetic/synPanel.csv", 
+                       name_repair = "universal",
+         num_threads = 1,
+         skip_empty_rows = TRUE,
+         lazy = TRUE, 
+         trim_ws = T) |> 
+  select(psqi_6, starts_with("psqi"))
+
+data.panel <- fread("data-synthetic/synPanelClean.csv") |> # requires that the preprocessing script has been run
   left_join(read_csv("data-synthetic/synIntakeClean.csv"), by = "pid") |> 
   select(pid, wave, psqi_6, starts_with(c("mctq", "eps", "psqi")), total_hours_sleep, wemwbs, 
          age_scaled, bmi_scaled, SES_index_scaled, msf_sc_numeric, gender) |> 
@@ -98,6 +108,7 @@ gamingMonthly <- data.gaming |>
   left_join(data.panel |> select(pid, msf_sc_numeric) |> filter(!is.na(msf_sc_numeric)), 
             by = c("pid")) |> # hacky way to make sure chronotype (measured in wave 1 only) doesn't get lost 
   filter(latenight == 1) |> 
+  filter(monthly_avg_minutes_played  > 0) |> 
   ungroup() |> 
   mutate(monthly_avg_minutes_played = replace_na(monthly_avg_minutes_played, 0)) |> 
   arrange(as.integer(pid), month)

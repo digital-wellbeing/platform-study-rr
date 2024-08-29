@@ -41,7 +41,7 @@ set.seed(8675309)
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
-p_load(tidyverse, mctq)
+p_load(tidyverse, mctq, data.table)
 ```
 
 ## Load data
@@ -50,7 +50,9 @@ p_load(tidyverse, mctq)
 #| label: load-data
 
 synDiary <- read_csv("data-synthetic/synDiary.csv")
-synPanel <- read_csv("data-synthetic/synPanel.csv")
+
+# for unknown reasons, read_csv imports some columns incorrectly, so we use data.table::fread
+synPanel <- fread("data-synthetic/synPanel.csv") 
 synIntake <- read_csv("data-synthetic/synIntake.csv")
 
 nin <- read_csv("data-synthetic/synNintendo.csv") |>
