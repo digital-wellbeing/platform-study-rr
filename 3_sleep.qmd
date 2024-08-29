@@ -72,7 +72,12 @@ data.gaming <- bind_rows(data.xbox, data.steam, data.nin) |>
   mutate(
     minutes_played = as.numeric(difftime(sessionEnd, sessionStart, units = "mins")),
     latenight = ifelse(hour(sessionStart) >= 23 | hour(sessionStart) < 6, 1, 0),
-    isWeekend = ifelse(weekdays(sessionStart) %in% c("Friday", "Saturday"), 1, 0)
+    isWeekend = ifelse(weekdays(sessionStart) %in% c("Friday", "Saturday"), 1, 0),
+    
+    # calculate late night using lubridate::interval objects
+    interval_gaming = interval(sessionStart, sessionEnd),
+    interval_latenight = interval(date + hours(23), date + hours(30)), # gets the 11pm to 6am following day interval from date
+    latenightMinutes = as.numeric(intersect(interval_gaming, interval_latenight))/60 # calculate overlap in minutes
   ) |> 
 
   # assign each session to a wave based on the date, if the date is within 4
