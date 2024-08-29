@@ -113,10 +113,13 @@ gamingBiweekly <- data.gaming |>
   summarise(
     biweekly_avg_minutes_played = sum(latenightMinutes)/14,
   ) |> 
-  left_join(data.panel, by = c("pid", "wave")) |> 
+  left_join(data.panel |> select(-msf_sc_numeric), by = c("pid", "wave")) |> 
+  left_join(data.panel |> select(pid, msf_sc_numeric) |> filter(!is.na(msf_sc_numeric)), 
+            by = c("pid")) |> # hacky way to make sure chronotype (measured in wave 1 only) doesn't get lost 
   mutate(biweekly_avg_minutes_played = replace_na(biweekly_avg_minutes_played, 0)) |> 
   ungroup() |> 
-  arrange(as.integer(pid), wave)
+  arrange(as.integer(pid), wave) |> 
+  select(pid, wave, msf_sc_numeric, everything())
 
 ```
 
@@ -199,9 +202,9 @@ modelsummary(
 ```
 
 
-# H2
+## H2
 
-## H2a: The negative association between late-night gaming and sleep quality is more pronounced among evening chronotypes.
+### H2a: The negative association between late-night gaming and sleep quality is more pronounced among evening chronotypes.
 
 ```{r}
 #| label: h2a
@@ -219,7 +222,8 @@ modelsummary(
 )
 ```
 
-## H2b: The negative association between late-night gaming and sleep duration is more pronounced among evening chronotypes.
+### H2b: The negative association between late-night gaming and sleep duration is more pronounced among evening chronotypes.
+
 ```{r}
 #| label: h2b
 
@@ -237,7 +241,7 @@ modelsummary(
 )
 ```
 
-## H2c: The negative association between late-night gaming and well-being is more pronounced among evening chronotypes.
+### H2c: The negative association between late-night gaming and well-being is more pronounced among evening chronotypes.
 
 ```{r}
 #| label: h2c
@@ -255,7 +259,7 @@ modelsummary(
 )
 ```
 
-## H2d: The negative association between late-night gaming and daytime sleepiness is more pronounced among evening chronotypes.
+### H2d: The negative association between late-night gaming and daytime sleepiness is more pronounced among evening chronotypes.
 
 ```{r}
 #| label: h2d
