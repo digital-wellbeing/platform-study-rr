@@ -127,6 +127,9 @@ gamingBiweekly <- data.gaming |>
 
 
 ## H1a: Late-night gaming is associated with poorer sleep quality.
+
+Multilevel ordinal regression whereby monthly average minutes played predicts sleep quality (PSQI), controlling for age, BMI, SES index, region, and whether playtime falls on a weekend, with a random intercept and slope for participants.
+
 ```{r}
 #| label: h1a
 #| code-summary: "Fit H1a model"
@@ -149,6 +152,8 @@ modelsummary(
 
 ## H1b: Late-night gaming is associated with shorter sleep duration.
 
+Multilevel linear regression whereby monthly average minutes played predicts total hours of sleep (PSQI), controlling for age, BMI, SES index, region, gender, and whether playtime falls on a weekend, with a random intercept and slope for participants and a random intercept for gender.
+
 ```{r}
 #| label: h1b
 #| code-summary: "Fit H1b model"
@@ -169,6 +174,8 @@ modelsummary(
 
 ## H1c: Late-night gaming is associated with lower well-being.
 
+Multilevel linear regression whereby monthly average minutes played predicts daytime sleepiness (Epworth Sleepiness Scale), controlling for age, BMI, SES index, region, gender, and whether playtime falls on a weekend, with a random intercept and slope for participants and a random intercept for gender.
+
 ```{r}
 #| label: h1c
 #| code-summary: "Fit H1c model"
@@ -188,6 +195,8 @@ modelsummary(
 ```
 
 ## H1d: Late-night gaming is associated with higher daytime sleepiness.
+
+Multilevel linear regression whereby biweekly average minutes played predicts well-being (WEMWBS), controlling for age, BMI, SES index, region, gender, and whether playtime falls on a weekend, with a random intercept and slope for participants and a random intercept for gender.
 
 ```{r}
 #| label: h1d
@@ -212,6 +221,8 @@ modelsummary(
 
 ### H2a: The negative association between late-night gaming and sleep quality is more pronounced among evening chronotypes.
 
+Multilevel ordinal regression whereby the interaction between monthly average minutes played and chronotype (MSFsc: mid-sleep on free days corrected for sleep debt on weekdays; MCTQ) predicts sleep quality (PSQI), controlling for age, BMI, SES index, region, and whether playtime falls on a weekend, with a random intercept and slope for participants.
+
 ```{r}
 #| label: h2a
 #| code-summary: "Fit H2a model"
@@ -230,6 +241,8 @@ modelsummary(
 ```
 
 ### H2b: The negative association between late-night gaming and sleep duration is more pronounced among evening chronotypes.
+
+Multilevel linear regression whereby the interaction between monthly average minutes played and chronotype (MSFsc; MCTQ) predicts total hours of sleep, controlling for age, BMI, SES index, region, gender, and whether playtime falls on a weekend, with a random intercept and slope for participants and a random intercept for gender.
 
 ```{r}
 #| label: h2b
@@ -251,6 +264,8 @@ modelsummary(
 
 ### H2c: The negative association between late-night gaming and well-being is more pronounced among evening chronotypes.
 
+Multilevel linear regression whereby the interaction between monthly average minutes played and chronotype (MSFsc; MCTQ) predicts daytime sleepiness (Epworth Sleepiness Scale), controlling for age, BMI, SES index, region, gender, and whether playtime falls on a weekend, with a random intercept and slope for participants and a random intercept for gender.
+
 ```{r}
 #| label: h2c
 #| code-summary: "Fit H2c model"
@@ -269,6 +284,10 @@ modelsummary(
 ```
 
 ### H2d: The negative association between late-night gaming and daytime sleepiness is more pronounced among evening chronotypes.
+
+Multilevel linear regression whereby the interaction between biweekly average minutes played and chronotype (MSFsc; MCTQ) predicts well-being (WEMWBS), controlling for age, BMI, SES index, region, gender, and whether playtime falls on a weekend, with a random intercept for participants and a random intercept for gender.
+
+
 
 ```{r}
 #| label: h2d
