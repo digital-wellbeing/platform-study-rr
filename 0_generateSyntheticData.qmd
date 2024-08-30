@@ -607,14 +607,14 @@ Generate `codebook.xlsx`.
 
 metaInfo <- tribble(
   ~Tab, ~`Data File`, ~Content,
-  "Intake", "data-synthetic/synIntake.csv", "Data on participant demographics and gaming habits",
-  "Panel", "data-synthetic/synPanel.csv", "Wellbeing, sleep and time use data from the panel survey",
-  "Diary", "data-synthetic/synDiary.csv", "Daily diary data on gaming, wellbeing, and sleep",
-  "Nintendo", "data-synthetic/synNintendo.csv", "Telemetry data (session-level) from the Nintendo Switch",
-  "Xbox", "data-synthetic/synXbox.csv", "Telemetry data (session-level) from Xbox devices",
-  "Steam", "data-synthetic/synSteam.csv", "Telemetry data (total playtime in 1 hour blocks) from Steam",
-  "iOS", "data-synthetic/syniOS.csv", "Screen time data from iOS devices, pulled from screenshots of the Screen time app",
-  "Android", "data-synthetic/synAndroid.csv", "App usage data from Android devices, pulled from ActivityWatch"
+  "Intake", "data-synthetic/synIntake.csv.gz", "Data on participant demographics and gaming habits",
+  "Panel", "data-synthetic/synPanel.csv.gz", "Wellbeing, sleep and time use data from the panel survey",
+  "Diary", "data-synthetic/synDiary.csv.gz", "Daily diary data on gaming, wellbeing, and sleep",
+  "Nintendo", "data-synthetic/synNintendo.csv.gz", "Telemetry data (session-level) from the Nintendo Switch",
+  "Xbox", "data-synthetic/synXbox.csv.gz", "Telemetry data (session-level) from Xbox devices",
+  "Steam", "data-synthetic/synSteam.csv.gz", "Telemetry data (total playtime in 1 hour blocks) from Steam",
+  "iOS", "data-synthetic/syniOS.csv.gz", "Screen time data from iOS devices, pulled from screenshots of the Screen time app",
+  "Android", "data-synthetic/synAndroid.csv.gz", "App usage data from Android devices, pulled from ActivityWatch"
 )
 
 intakeCodebook <- synIntake |>
@@ -840,12 +840,12 @@ Save the data to `data-synthetic`, for use in devising analysis scripts for e.g.
 #| code-summary: "Show code (save data)"
 
 # Export as CSV
-write_csv(synIntake, "data-synthetic/synIntake.csv")
-write_csv(synDiary, "data-synthetic/synDiary.csv")
-write_csv(synPanel, "data-synthetic/synPanel.csv")
-write_csv(synXbox, "data-synthetic/synXbox.csv")
-write_csv(synNintendo, "data-synthetic/synNintendo.csv")
-write_csv(synAndroid, "data-synthetic/synAndroid.csv")
-write_csv(synSteam, "data-synthetic/synSteam.csv")
-write_csv(syniOS, "data-synthetic/syniOS.csv")
+write_csv(synIntake, "data-synthetic/synIntake.csv.gz")
+write_csv(synDiary, "data-synthetic/synDiary.csv.gz")
+write_csv(synPanel, "data-synthetic/synPanel.csv.gz")
+write_csv(synXbox, "data-synthetic/synXbox.csv.gz")
+write_csv(synNintendo, "data-synthetic/synNintendo.csv.gz")
+write_csv(synAndroid, "data-synthetic/synAndroid.csv.gz")
+write_csv(synSteam, "data-synthetic/synSteam.csv.gz")
+write_csv(syniOS, "data-synthetic/syniOS.csv.gz")
 ```

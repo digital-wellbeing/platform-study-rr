@@ -33,8 +33,8 @@ studyStartDate <- as_datetime("2024-05-01 00:00:00")
 # don't use read_csv for the synPanelClean! no idea why but it guesses column
 # type wrong, leading to a lot of NA imports
 
-data.panel <- fread("data-synthetic/synPanelClean.csv") |> # requires that the preprocessing script has been run
-  left_join(read_csv("data-synthetic/synIntakeClean.csv"), by = "pid") |> 
+data.panel <- fread("data-synthetic/synPanelClean.csv.gz") |> # requires that the preprocessing script has been run
+  left_join(read_csv("data-synthetic/synIntakeClean.csv.gz"), by = "pid") |> 
   select(pid, wave, region, psqi_6, starts_with(c("mctq", "eps", "psqi")), total_hours_sleep, wemwbs, 
          age_scaled, bmi_scaled, SES_index_scaled, msf_sc_numeric, gender) |> 
   mutate(
@@ -42,11 +42,11 @@ data.panel <- fread("data-synthetic/synPanelClean.csv") |> # requires that the p
     pid = as.character(pid)
   )
 
-data.nin <- read_csv("data-synthetic/synNintendo.csv")
-data.xbox <- read_csv("data-synthetic/synXbox.csv")
-data.steam <- read_csv("data-synthetic/synSteam.csv")
-data.android <- read_csv("data-synthetic/synAndroid.csv")
-data.ios <- read_csv("data-synthetic/syniOS.csv")
+data.nin <- read_csv("data-synthetic/synNintendo.csv.gz")
+data.xbox <- read_csv("data-synthetic/synXbox.csv.gz")
+data.steam <- read_csv("data-synthetic/synSteam.csv.gz")
+data.android <- read_csv("data-synthetic/synAndroid.csv.gz")
+data.ios <- read_csv("data-synthetic/syniOS.csv.gz")
 
 ```
 
@@ -65,6 +65,7 @@ data.gaming <- bind_rows(data.xbox, data.steam, data.nin) |>
     isWeekend = ifelse(weekdays(sessionStart) %in% c("Friday", "Saturday"), 1, 0),
     
     # calculate late night using lubridate::interval objects
+    # TODO: update to ensure that test case 6 (sessions starting after midnight the following day) are captured
     interval_gaming = interval(sessionStart, sessionEnd),
     interval_latenight = interval(date + hours(23), date + hours(30)), # gets the 11pm to 6am following day interval from date
     latenightMinutes = as.numeric(intersect(interval_gaming, interval_latenight))/60 # calculate overlap in minutes

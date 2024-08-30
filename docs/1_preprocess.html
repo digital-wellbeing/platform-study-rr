@@ -190,7 +190,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#process-telemetry" id="toc-process-telemetry" class="nav-link" data-scroll-target="#process-telemetry"><span class="header-section-number">3.6</span> Process telemetry</a></li>
   <li><a href="#exclusion-criteria" id="toc-exclusion-criteria" class="nav-link" data-scroll-target="#exclusion-criteria"><span class="header-section-number">3.7</span> Exclusion criteria</a></li>
-  <li><a href="#save-data" id="toc-save-data" class="nav-link" data-scroll-target="#save-data"><span class="header-section-number">3.8</span> Save data</a></li>
+  <li><a href="#impute-missing-data" id="toc-impute-missing-data" class="nav-link" data-scroll-target="#impute-missing-data"><span class="header-section-number">3.8</span> Impute missing data</a></li>
+  <li><a href="#save-data" id="toc-save-data" class="nav-link" data-scroll-target="#save-data"><span class="header-section-number">3.9</span> Save data</a></li>
   </ul>
 </nav>
     </div>
@@ -234,7 +235,7 @@ Note
 <h2 data-number="3.1" class="anchored" data-anchor-id="preamble"><span class="header-section-number">3.1</span> Preamble</h2>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
+<summary>Show the code (options)</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">echo =</span> knitr<span class="sc">::</span><span class="fu">is_html_output</span>(),</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">warning =</span> <span class="cn">FALSE</span>,</span>
@@ -247,7 +248,7 @@ Note
 </div>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
+<summary>Show the code (libraries)</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(<span class="st">"pacman"</span>)) <span class="fu">install.packages</span>(<span class="st">"pacman"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pacman)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -259,18 +260,18 @@ Note
 <h2 data-number="3.2" class="anchored" data-anchor-id="load-data"><span class="header-section-number">3.2</span> Load data</h2>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>synDiary <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synDiary.csv"</span>)</span>
+<summary>Show the code (load data)</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>synDiary <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synDiary.csv.gz"</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># for unknown reasons, read_csv imports some columns incorrectly, so we use data.table::fread</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>synPanel <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"data-synthetic/synPanel.csv"</span>) </span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>synIntake <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synIntake.csv"</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>synPanel <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"data-synthetic/synPanel.csv.gz"</span>) </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>synIntake <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synIntake.csv.gz"</span>)</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>nin <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synNintendo.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>synNintendo <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synNintendo.csv.gz"</span>) <span class="sc">|&gt;</span></span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionEnd =</span> sessionStart <span class="sc">+</span> <span class="fu">minutes</span>(<span class="fu">round</span>(duration)), <span class="at">.after =</span> sessionStart)</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>xbox <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synXbox.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>synXbox <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synXbox.csv.gz"</span>) <span class="sc">|&gt;</span></span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionEnd =</span> sessionStart <span class="sc">+</span> <span class="fu">minutes</span>(<span class="fu">round</span>(duration)), <span class="at">.after =</span> sessionStart)</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>steam <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synSteam.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>synSteam <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data-synthetic/synSteam.csv.gz"</span>) <span class="sc">|&gt;</span></span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sessionStart =</span> date <span class="sc">+</span> <span class="fu">hours</span>(hour))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -279,7 +280,7 @@ Note
 <h2 data-number="3.3" class="anchored" data-anchor-id="clean-intake"><span class="header-section-number">3.3</span> Clean intake</h2>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
+<summary>Show the code (clean intake)</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>synIntakeClean <span class="ot">&lt;-</span> synIntake <span class="sc">|&gt;</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># define socio-economic status (SES) index</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
@@ -330,7 +331,7 @@ Note
 <p>Here we want to: - recode the diary data to numeric values - calculate mean scores of relevant variables - calculate within- and between-person centered variables - recode the displaced activity data into categories (randomly assigned, for now) - calculate some variables based on the telemetry</p>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
+<summary>Show the code (clean diary)</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>synDiaryClean <span class="ot">&lt;-</span> synDiary <span class="sc">|&gt;</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">starts_with</span>(<span class="fu">c</span>(<span class="st">"bpnsfs"</span>, <span class="st">"bangs"</span>)), <span class="sc">~</span> <span class="fu">case_when</span>(</span>
@@ -414,7 +415,7 @@ Note
 <p><code>msf_sc</code> applies a correction to msf, removing an estimation of the effect from accumulated sleep debt on workdays that usually is compensated on work-free days. See <code>?msf_sc</code> to learn more.</p>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
+<summary>Show the code (clean panel)</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>synPanelClean <span class="ot">&lt;-</span> synPanel <span class="sc">|&gt;</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">starts_with</span>(<span class="fu">c</span>(<span class="st">"bangs"</span>, <span class="st">"wemwbs"</span>, <span class="st">"promis"</span>, <span class="st">"trojan"</span>, <span class="st">"BFI"</span>, <span class="st">"eps"</span>)), <span class="sc">~</span> <span class="fu">case_when</span>(</span>
@@ -549,7 +550,7 @@ Note
 <h2 data-number="3.6" class="anchored" data-anchor-id="process-telemetry"><span class="header-section-number">3.6</span> Process telemetry</h2>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
+<summary>Show the code (process telemetry)</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: make sure that sessions happening as late as 6 hours later are still included, even if this isn't on the same day</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># in the below, we join the survey data to each telemetry table,</span></span>
@@ -557,7 +558,7 @@ Note
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># after, we join these back together with a binary indicator of whether at least one session occurred</span></span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>nintendoOverlaps <span class="ot">&lt;-</span> synDiaryClean <span class="sc">%&gt;%</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(nin, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>, <span class="st">"date"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(synNintendo, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>, <span class="st">"date"</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    sessionEnd <span class="sc">&gt;=</span> surveyCompletionTime <span class="sc">|</span> <span class="co"># Session ended after the survey time</span></span>
 <span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>      sessionStart <span class="sc">&lt;=</span> surveyCompletionTime <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>) <span class="co"># Session started before the end of the time window</span></span>
@@ -566,7 +567,7 @@ Note
 <span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">playedLaterNintendo =</span> <span class="cn">TRUE</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
 <span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>xboxOverlaps <span class="ot">&lt;-</span> synDiaryClean <span class="sc">%&gt;%</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(xbox, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>, <span class="st">"date"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(synXbox, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>, <span class="st">"date"</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    sessionEnd <span class="sc">&gt;=</span> surveyCompletionTime <span class="sc">|</span> <span class="co"># Session ended after the survey time</span></span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>      sessionStart <span class="sc">&lt;=</span> surveyCompletionTime <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>) <span class="co"># Session started before the end of the time window</span></span>
@@ -575,7 +576,7 @@ Note
 <span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">playedLaterXbox =</span> <span class="cn">TRUE</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
 <span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>steamOverlaps <span class="ot">&lt;-</span> synDiaryClean <span class="sc">%&gt;%</span></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(steam, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>, <span class="st">"date"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(synSteam, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>, <span class="st">"date"</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
 <span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    sessionStart <span class="sc">&lt;=</span> surveyCompletionTime <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>) <span class="co"># Session started before the end of the time window</span></span>
 <span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
@@ -608,21 +609,69 @@ Note
 </section>
 <section id="exclusion-criteria" class="level2" data-number="3.7">
 <h2 data-number="3.7" class="anchored" data-anchor-id="exclusion-criteria"><span class="header-section-number">3.7</span> Exclusion criteria</h2>
+<p>We will exclude any telemetry rows wherein players have logged more than 24 hours of playtime on one platform in any single day, or where sessions have taken place in the future, indicating a technical problem or manipulation of the system clock for in-game benefits.</p>
+<p>We will further include an attention check in the panel surveys whereby participants are given a random duplicated item from the need satisfaction and frustration measure. Responses where the two duplicate items differ by more than 1 scale point will be flagged for manual inspection of potential careless responding.</p>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: exclude crazy telemetry</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<summary>Show the code (exclusion criteria)</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>excluded <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(synNintendo, synXbox, synSteam) <span class="sc">|&gt;</span> </span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(pid, day) <span class="sc">|&gt;</span> </span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">dailyPlay =</span> <span class="fu">sum</span>(duration)) <span class="sc">|&gt;</span> </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(dailyPlay <span class="sc">&gt;=</span> <span class="dv">1440</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>synNintendoClean <span class="ot">&lt;-</span> synNintendo <span class="sc">|&gt;</span> </span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sessionStart <span class="sc">&lt;=</span> <span class="fu">Sys.time</span>()) <span class="sc">|&gt;</span> <span class="co"># no future sessions</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(excluded, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>))</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>synSteamClean <span class="ot">&lt;-</span> synSteam <span class="sc">|&gt;</span> </span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sessionStart <span class="sc">&lt;=</span> <span class="fu">Sys.time</span>()) <span class="sc">|&gt;</span> <span class="co"># no future sessions</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(excluded, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>))</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>synXboxClean <span class="ot">&lt;-</span> synXbox <span class="sc">|&gt;</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sessionStart <span class="sc">&lt;=</span> <span class="fu">Sys.time</span>()) <span class="sc">|&gt;</span> <span class="co"># no future sessions</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(excluded, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"pid"</span>, <span class="st">"day"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>
-<section id="save-data" class="level2" data-number="3.8">
-<h2 data-number="3.8" class="anchored" data-anchor-id="save-data"><span class="header-section-number">3.8</span> Save data</h2>
+<section id="impute-missing-data" class="level2" data-number="3.8">
+<h2 data-number="3.8" class="anchored" data-anchor-id="impute-missing-data"><span class="header-section-number">3.8</span> Impute missing data</h2>
+<p>Here we give an indicative example of how multiple imputation will be performed. As this is computationally demanding and will ultimately depend on the parameters of the true data, we do not exhaustively simulate imputation here. Broadly, we:</p>
+<ul>
+<li>Pivot the data to wide format</li>
+<li>Select relevant predictors for imputation so as to reduce the data size (which would otherwise include thousands of columns)</li>
+<li>Perform multiple imputation using predictive mean match</li>
+</ul>
+<p>We will evaluate this imputation model for performance and adjust as necessary.</p>
 <div class="cell">
 <details class="code-fold">
-<summary>Show the code</summary>
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synIntakeClean, <span class="st">"data-synthetic/synIntakeClean.csv"</span>)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synDiaryClean, <span class="st">"data-synthetic/synDiaryClean.csv"</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synPanelClean, <span class="st">"data-synthetic/synPanelClean.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<summary>Show the code (multiple imputation)</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>diaryWide <span class="ot">&lt;-</span> diary <span class="sc">|&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>date) <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> day,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from =</span> <span class="sc">-</span>pid,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_sep =</span> <span class="st">"_w"</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">starts_with</span>(<span class="fu">c</span>(<span class="st">"day"</span>, <span class="st">"missing"</span>, <span class="st">"surveyCompletion"</span>, <span class="st">"sd"</span>, <span class="st">"timeUse"</span>, <span class="st">"displacedActivity"</span>, <span class="st">"playedLater"</span>)))</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">quickpred</span>(diaryWide)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="fu">mice</span>(<span class="at">data =</span> diaryWide, <span class="at">m =</span> <span class="dv">5</span>, <span class="at">method =</span> <span class="st">"pmm"</span>, <span class="at">maxit =</span> <span class="dv">5</span>, <span class="at">seed =</span> <span class="dv">8675309</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="fu">mice</span>(<span class="at">data =</span> diaryWide, <span class="at">m =</span> <span class="dv">5</span>, <span class="at">method =</span> <span class="st">"pmm"</span>, <span class="at">maxit =</span> <span class="dv">5</span>, <span class="at">parallelseed =</span> <span class="dv">8675309</span>) <span class="co"># alternatively, try to parallelize</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="save-data" class="level2" data-number="3.9">
+<h2 data-number="3.9" class="anchored" data-anchor-id="save-data"><span class="header-section-number">3.9</span> Save data</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code (save data)</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synIntakeClean, <span class="st">"data-synthetic/synIntakeClean.csv.gz"</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synDiaryClean, <span class="st">"data-synthetic/synDiaryClean.csv.gz"</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synPanelClean, <span class="st">"data-synthetic/synPanelClean.csv.gz"</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synNintendoClean, <span class="st">"data-synthetic/synNintendoClean.csv.gz"</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synXboxClean, <span class="st">"data-synthetic/synXboxClean.csv.gz"</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(synSteamClean, <span class="st">"data-synthetic/synSteamClean.csv.gz"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 

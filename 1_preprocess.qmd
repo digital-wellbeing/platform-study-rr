@@ -52,17 +52,17 @@ p_load(tidyverse, mctq, data.table)
 #| label: load-data
 #| code-summary: "Show the code (load data)"
 
-synDiary <- read_csv("data-synthetic/synDiary.csv")
+synDiary <- read_csv("data-synthetic/synDiary.csv.gz")
 
 # for unknown reasons, read_csv imports some columns incorrectly, so we use data.table::fread
-synPanel <- fread("data-synthetic/synPanel.csv") 
-synIntake <- read_csv("data-synthetic/synIntake.csv")
+synPanel <- fread("data-synthetic/synPanel.csv.gz") 
+synIntake <- read_csv("data-synthetic/synIntake.csv.gz")
 
-nin <- read_csv("data-synthetic/synNintendo.csv") |>
+synNintendo <- read_csv("data-synthetic/synNintendo.csv.gz") |>
   mutate(sessionEnd = sessionStart + minutes(round(duration)), .after = sessionStart)
-xbox <- read_csv("data-synthetic/synXbox.csv") |>
+synXbox <- read_csv("data-synthetic/synXbox.csv.gz") |>
   mutate(sessionEnd = sessionStart + minutes(round(duration)), .after = sessionStart)
-steam <- read_csv("data-synthetic/synSteam.csv") |>
+synSteam <- read_csv("data-synthetic/synSteam.csv.gz") |>
   mutate(sessionStart = date + hours(hour))
 ```
 
@@ -366,7 +366,7 @@ nintendoOverlaps <- synDiaryClean %>%
   summarize(playedLaterNintendo = TRUE, .groups = "drop")
 
 xboxOverlaps <- synDiaryClean %>%
-  left_join(xbox, by = c("pid", "day", "date")) |>
+  left_join(synXbox, by = c("pid", "day", "date")) |>
   filter(
     sessionEnd >= surveyCompletionTime | # Session ended after the survey time
       sessionStart <= surveyCompletionTime + days(1) # Session started before the end of the time window
@@ -375,7 +375,7 @@ xboxOverlaps <- synDiaryClean %>%
   summarize(playedLaterXbox = TRUE, .groups = "drop")
 
 steamOverlaps <- synDiaryClean %>%
-  left_join(steam, by = c("pid", "day", "date")) |>
+  left_join(synSteam, by = c("pid", "day", "date")) |>
   filter(
     sessionStart <= surveyCompletionTime + days(1) # Session started before the end of the time window
   ) |>
@@ -472,10 +472,10 @@ mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309)
 #| label: save-data
 #| code-summary: "Show the code (save data)"
 
-write_csv(synIntakeClean, "data-synthetic/synIntakeClean.csv")
-write_csv(synDiaryClean, "data-synthetic/synDiaryClean.csv")
-write_csv(synPanelClean, "data-synthetic/synPanelClean.csv")
-write_csv(synNintendoClean, "data-synthetic/synNintendoClean.csv")
-write_csv(synXboxClean, "data-synthetic/synXboxClean.csv")
-write_csv(synSteamClean, "data-synthetic/synSteamClean.csv")
+write_csv(synIntakeClean, "data-synthetic/synIntakeClean.csv.gz")
+write_csv(synDiaryClean, "data-synthetic/synDiaryClean.csv.gz")
+write_csv(synPanelClean, "data-synthetic/synPanelClean.csv.gz")
+write_csv(synNintendoClean, "data-synthetic/synNintendoClean.csv.gz")
+write_csv(synXboxClean, "data-synthetic/synXboxClean.csv.gz")
+write_csv(synSteamClean, "data-synthetic/synSteamClean.csv.gz")
 ```

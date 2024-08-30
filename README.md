@@ -2,11 +2,13 @@
 
 This repo documents the data and analysis code for our project on the relationship between video game play and wellbeing. It has four main components:
 - generating simulated data to illustrate our preregistered analyses
-- documenting the data and creating a vodebook
+- documenting the data and creating a codebook
 - preprocessing the data for analysis 
 - data analysis for three outputs, structured to match our programmatic registered report. 
 
 To reproduce the project in its entirety, run `quarto render --profile internal` (for lab members), or `quarto render --profile external` (for non-lab members). More details are provided below. 
+
+Data files are saved as .csv.gz for space efficiency. These can either be unzipped and opened in a spreadsheet program, or read directly into R using `readr::read_csv()` or Python using `pandas.read_csv()`.
 
 ## Scripts
 
@@ -28,11 +30,11 @@ We then analyze these data in the following scripts:
 
 - `.Renviron` defines the path to key internal data files and API credentials.
 - `index.qmd` is the header file that stitches the other Quarto files together into book form. 
-- `_quarto-internal.yml` defines the order in which files are run and project-level variables for **internal** use 
+- `_quarto.yml` defines the order in which files are run and project-level variables for **internal** use 
 - `_quarto-external.yml` defines the order in which files are run and project-level variables for **external** use (same as `_quarto-internal.yml` with the exception of not running `0_generateSyntheticData.qmd`)
 
 ## Running
 
 - For **external use** (non-lab members), run `quarto render --profile external` in the Rstudio terminal to render all of the quarto files except 0_generateSyntheticData.qmd, which requires internal credentials. This command uses the specifications in `_quarto-external.yml` to render the files in the correct order (indicated by their number), and output them to `outputs/`.
 
-- For **internal use**, run `quarto render --profile internal` in the Rstudio terminal to render *all* quarto files. This command uses the specifications in `_quarto-internal.yml` to render the files in the correct order (indicated by their number), and output them to `docs/`. The files in `docs/` are hosted on GitHub pages here: [https://digital-wellbeing.github.io/platform-study-rr/](https://digital-wellbeing.github.io/platform-study-rr/).
+- For **internal use**, run `quarto render` in the Rstudio terminal to render *all* quarto files. This command uses the specifications in `_quarto-internal.yml` to render the files in the correct order (indicated by their number), and output them to `docs/`. The files in `docs/` are hosted on GitHub pages here: [https://digital-wellbeing.github.io/platform-study-rr/](https://digital-wellbeing.github.io/platform-study-rr/).
