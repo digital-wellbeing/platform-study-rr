@@ -15,6 +15,7 @@ bibliography: references.bib
 
 ```{r}
 #| label: load-libraries
+#| code-summary: "Show the code (libraries)"
 
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
@@ -24,6 +25,7 @@ p_load(tidyverse, lme4, marginaleffects, glmmTMB, mice)
 
 ```{r}
 #| label: load-data
+#| code-summary: "Show the code (load data)"
 
 diary <- read_csv("data-synthetic/synDiaryClean.csv") # requires that the preprocessing script has been run
 intake <- read_csv("data-synthetic/synIntake.csv")
@@ -34,6 +36,7 @@ steam <- read_csv("data-synthetic/synXbox.csv")
 
 ```{r}
 #| label: merge data
+#| code-summary: "Show the code (merge data)"
 
 dat <- diary |>
   left_join(intake |> select(pid, age, gender, eduLevel, employment),
@@ -47,25 +50,6 @@ dat <- diary |>
     employment = factor(employment),
     day = factor(day)
   )
-```
-
-```{r}
-#| label: multiple-imputation
-#| eval: false
-
-diaryWide <- diary |>
-  select(-date) |>
-  pivot_wider(
-    names_from = day,
-    values_from = -pid,
-    names_sep = "_w"
-  ) |>
-  select(-starts_with(c("day", "missing", "surveyCompletion", "sd", "timeUse", "displacedActivity", "playedLater")))
-
-quickpred(diaryWide)
-
-mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, seed = 8675309)
-mice(data = diaryWide, m = 5, method = "pmm", maxit = 5, parallelseed = 8675309) # alternatively, try to parallelize
 ```
 
 
@@ -83,6 +67,7 @@ This model, in contrast to the others, has some covariates in it, mostly as a re
 
 ```{r}
 #| label: h1-model
+#| code-summary: "Show the code (H1 model)"
 
 h1mod <- glmmTMB(globalNS ~ gameNS_cw + gameNS_cb + (1 + gameNS_cw | pid) + ar1(day + 0 | pid),
   data = dat
@@ -107,6 +92,7 @@ As before, we include an AR(1) term to account for the fact that likelihood of p
 
 ```{r}
 #| label: h2-model
+#| code-summary: "Show the code (H2 model)"
 
 h2mod <- glmmTMB(
   playedLaterAny ~ gameNS_cw + gameNS_cb + globalNF_cw + globalNF_cb +
@@ -132,6 +118,7 @@ We use a multilevel linear regression to determine whether displacing a core act
 
 ```{r}
 #| label: h3-model
+#| code-summary: "Show the code (H3 model)"
 
 table(dat$displacedCoreDomain)
 

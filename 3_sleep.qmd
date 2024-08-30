@@ -42,11 +42,11 @@ data.panel <- fread("data-synthetic/synPanelClean.csv") |> # requires that the p
     pid = as.character(pid)
   )
 
-data.nin <- readRDS("data-synthetic/synNintendo.rds")
-data.xbox <- readRDS("data-synthetic/synXbox.rds")
-data.steam <- readRDS("data-synthetic/synSteam.rds")
-data.android <- readRDS("data-synthetic/synAndroid.rds")
-data.ios <- readRDS("data-synthetic/syniOS.rds")
+data.nin <- read_csv("data-synthetic/synNintendo.csv")
+data.xbox <- read_csv("data-synthetic/synXbox.csv")
+data.steam <- read_csv("data-synthetic/synSteam.csv")
+data.android <- read_csv("data-synthetic/synAndroid.csv")
+data.ios <- read_csv("data-synthetic/syniOS.csv")
 
 ```
 
@@ -90,7 +90,8 @@ data.gaming <- bind_rows(data.xbox, data.steam, data.nin) |>
       day >= 57 & day <= 70 ~ 5,
       day >= 71 & day <= 84 ~ 6,
       TRUE ~ NA_real_  # Assign NA for days beyond 84
-    )
+    ),
+    pid = as.character(pid)
   ) 
 
 # group gaming by PID, wave and latenight and calculate daily average minutes_played
@@ -127,6 +128,7 @@ gamingBiweekly <- data.gaming |>
 ## H1a: Late-night gaming is associated with poorer sleep quality.
 ```{r}
 #| label: h1a
+#| code-summary: "Fit H1a model"
 
 # For psqi_6 1 means Very good, 2 means Fairly good, 3 means Fairly bad, 4 means Very bad
 
@@ -148,6 +150,7 @@ modelsummary(
 
 ```{r}
 #| label: h1b
+#| code-summary: "Fit H1b model"
 
 # Fit the model
 model.h1b <- lmer(total_hours_sleep ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | pid) +
@@ -167,6 +170,7 @@ modelsummary(
 
 ```{r}
 #| label: h1c
+#| code-summary: "Fit H1c model"
 
 model.h1c <- lmer(wemwbs ~ biweekly_avg_minutes_played + (1 + biweekly_avg_minutes_played | pid) +
                     age_scaled + bmi_scaled + SES_index_scaled + (1 | gender) + region + isWeekend, 
@@ -186,6 +190,7 @@ modelsummary(
 
 ```{r}
 #| label: h1d
+#| code-summary: "Fit H1d model"
 
 # Fit the model
 model.h1d <- lmer(epsTotal ~ monthly_avg_minutes_played + (1 + monthly_avg_minutes_played | pid) +
@@ -208,6 +213,7 @@ modelsummary(
 
 ```{r}
 #| label: h2a
+#| code-summary: "Fit H2a model"
 
 # Fit the model with rescaled covariates
 model.h2a <- clmm(psqi_6_ord ~ monthly_avg_minutes_played * msf_sc_numeric + (1 + monthly_avg_minutes_played | pid) +
@@ -226,6 +232,7 @@ modelsummary(
 
 ```{r}
 #| label: h2b
+#| code-summary: "Fit H2b model"
 
 # Fit the model
 model.h2b <- lmer(total_hours_sleep ~ monthly_avg_minutes_played * msf_sc_numeric + (1 + monthly_avg_minutes_played | pid) +
@@ -245,6 +252,7 @@ modelsummary(
 
 ```{r}
 #| label: h2c
+#| code-summary: "Fit H2c model"
 
 # Fit the model
 model.h2c <- lmer(wemwbs ~ biweekly_avg_minutes_played * msf_sc_numeric + (1 | pid) +
@@ -263,6 +271,7 @@ modelsummary(
 
 ```{r}
 #| label: h2d
+#| code-summary: "Fit H2d model"
 
 model.h2d <- lmer(epsTotal ~ monthly_avg_minutes_played * msf_sc_numeric + (1 + monthly_avg_minutes_played | pid) +
                     age_scaled + bmi_scaled + SES_index_scaled + region + isWeekend + (1 | gender), 
